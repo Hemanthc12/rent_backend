@@ -1,5 +1,6 @@
 # backend/app.py
 import os
+import json
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 import gspread
@@ -7,7 +8,7 @@ from google.oauth2.service_account import Credentials
 from dotenv import load_dotenv
 
 # -----------------------
-# Load environment variables from .env
+# Load environment variables from .env (optional for local dev)
 # -----------------------
 load_dotenv()
 
@@ -17,28 +18,28 @@ load_dotenv()
 SHEET_NAME = os.environ.get("SHEET_NAME", "Daily Expenses")
 WORKSHEET_NAME = os.environ.get("WORKSHEET_NAME", "RENT_Details")
 API_KEY = os.environ.get("API_KEY", "replace_with_strong_key")
+SECRET_KEY = os.environ.get("SECRET_KEY", "dev_secret_key_change_me")
 
-# Absolute path for service account file
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-CREDENTIALS_FILE = os.path.join(BASE_DIR, os.environ.get("GOOGLE_CREDS_PATH", "service_account.json"))
+# Google Sheets JSON credentials from Render secret
+GOOGLE_CREDS_JSON = os.environ.get("GOOGLE_CREDS_JSON")
+if not GOOGLE_CREDS_JSON:
+    raise Exception("GOOGLE_CREDS_JSON environment variable is missing!")
 
+# -----------------------
+# Flask app setup
+# -----------------------
 app = Flask(__name__)
 CORS(app)
-
-# Flask secret key
-app.secret_key = os.environ.get("SECRET_KEY", "dev_secret_key_change_me")
+app.secret_key = SECRET_KEY
 
 # Google Sheets API scopes
-SCOPES = [
-    "https://spreadsheets.google.com/feeds",
-    "https://www.googleapis.com/auth/drive"
-]
+SCOPES = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 
 # -----------------------
 # Google Sheets helper functions
 # -----------------------
 def get_client():
-    creds = Credentials.from_service_account_file(CREDENTIALS_FILE, scopes=SCOPES)
+    creds = Credentials.from_service_account_info(json.loads(GOOGLE_CREDS_JSON), scopes=SCOPES)
     return gspread.authorize(creds)
 
 def get_sheet_and_ws():
@@ -47,7 +48,9 @@ def get_sheet_and_ws():
     ws = sht.worksheet(WORKSHEET_NAME)
     return sht, ws
 
+# -----------------------
 # API key check
+# -----------------------
 def require_api_key(req):
     key = req.headers.get("x-api-key") or req.args.get("api_key")
     return key == API_KEY
