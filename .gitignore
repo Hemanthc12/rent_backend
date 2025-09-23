@@ -1,0 +1,6 @@
+# secrets
+service_account.json
+*.pem
+*.key
+.venv/
+.env
