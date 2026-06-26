@@ -61,10 +61,59 @@ def get_client():
     creds = Credentials.from_service_account_info(json.loads(GOOGLE_CREDS_JSON), scopes=SCOPES)
     return gspread.authorize(creds)
 
+_RESOLVED_SHEET_ID = None  # cache the spreadsheet that actually holds our tabs
+
+def _has_tab(sh, name):
+    n = name.strip().lower()
+    try:
+        return any(ws.title.strip().lower() == n for ws in sh.worksheets())
+    except Exception:
+        return False
+
+def get_tab(sh, name):
+    """Get a worksheet by title, matching case-insensitively and trimming spaces."""
+    n = name.strip().lower()
+    for ws in sh.worksheets():
+        if ws.title.strip().lower() == n:
+            return ws
+    raise RuntimeError("Worksheet '%s' not found in the spreadsheet." % name)
+
+def get_spreadsheet(client):
+    """Find the spreadsheet holding the Tenants/RentEntries tabs. Tries the
+    configured title first, then searches every spreadsheet the service account
+    can access. The result is cached so we only search once."""
+    global _RESOLVED_SHEET_ID
+    if _RESOLVED_SHEET_ID:
+        try:
+            return client.open_by_key(_RESOLVED_SHEET_ID)
+        except Exception:
+            _RESOLVED_SHEET_ID = None
+    # 1) configured title, if it actually has our tabs
+    try:
+        sh = client.open(SHEET_NAME)
+        if _has_tab(sh, TENANTS_WS) or _has_tab(sh, ENTRIES_WS):
+            _RESOLVED_SHEET_ID = sh.id
+            return sh
+    except Exception:
+        pass
+    # 2) search everything the service account can see
+    try:
+        for f in client.list_spreadsheet_files():
+            try:
+                sh = client.open_by_key(f.get("id"))
+            except Exception:
+                continue
+            if _has_tab(sh, TENANTS_WS) and _has_tab(sh, ENTRIES_WS):
+                _RESOLVED_SHEET_ID = sh.id
+                return sh
+    except Exception:
+        pass
+    # 3) last resort: the configured title (may raise if missing)
+    return client.open(SHEET_NAME)
+
 def get_ws(name):
     client = get_client()
-    sht = client.open(SHEET_NAME)
-    return sht.worksheet(name)
+    return get_tab(get_spreadsheet(client), name)
 
 def header_index(headers, aliases):
     """Return (header_name, 1-based column index) for the first alias found."""
@@ -154,18 +203,17 @@ def months_between(start_ym, end_ym):
 # -----------------------
 # Core: read tenants + entries, compute auto-pending
 # -----------------------
-def read_tenants():
-    ws = get_ws(TENANTS_WS)
-    headers = ws.row_values(1)
-    return ws.get_all_records(), headers
-
 def read_entries():
     ws = get_ws(ENTRIES_WS)
     return ws.get_all_records()
 
 def build_state():
-    trecords, theaders = read_tenants()
-    entries = read_entries()
+    client = get_client()
+    sh = get_spreadsheet(client)
+    tws = get_tab(sh, TENANTS_WS)
+    theaders = tws.row_values(1)
+    trecords = tws.get_all_records()
+    entries = get_tab(sh, ENTRIES_WS).get_all_records()
     cmonth = current_month()
 
     # group entries by tenant_id
@@ -291,6 +339,28 @@ def api_verify():
     if not guard():
         return jsonify({"ok": False, "error": "unauthorized"}), 401
     return jsonify({"ok": True}), 200
+
+@app.route("/api/debug/sheets", methods=["GET"])
+def api_debug_sheets():
+    """List every spreadsheet (and its tabs) the service account can access.
+    Used to diagnose which file holds the Tenants/RentEntries tabs."""
+    if not guard():
+        return jsonify({"error": "unauthorized"}), 401
+    try:
+        client = get_client()
+        out = {"configured_title": SHEET_NAME, "tenants_ws": TENANTS_WS,
+               "entries_ws": ENTRIES_WS, "resolved_id": _RESOLVED_SHEET_ID, "files": []}
+        for f in client.list_spreadsheet_files():
+            item = {"name": f.get("name"), "id": f.get("id")}
+            try:
+                sh = client.open_by_key(f.get("id"))
+                item["tabs"] = [ws.title for ws in sh.worksheets()]
+            except Exception as e:
+                item["error"] = str(e)
+            out["files"].append(item)
+        return jsonify(out), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 # -----------------------
 # Tenants
