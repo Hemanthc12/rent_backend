@@ -1,0 +1,76 @@
+name: Build Android APK
+
+# Builds an installable debug APK from the web app (static/index.html) using
+# Capacitor. Runs automatically when the app changes, and can be run manually
+# from the Actions tab ("Run workflow"). The APK is published as a downloadable
+# Release and as a build artifact.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - 'static/**'
+      - 'capacitor.config.json'
+      - 'package.json'
+      - '.github/workflows/build-apk.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Capacitor
+        run: npm install
+
+      - name: Generate Android project
+        run: npx cap add android
+
+      - name: Sync web assets
+        run: npx cap sync android
+
+      - name: Build debug APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: RentManager-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
+      - name: Publish APK to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-build-${{ github.run_number }}
+          name: Rent Manager APK (build ${{ github.run_number }})
+          body: |
+            Rent Manager Android app (debug build).
+
+            How to install:
+            1. Download **app-debug.apk** from the Assets list below onto your phone.
+            2. Open it. If Android warns you, allow "Install unknown apps" for your browser / Files app.
+            3. Open the app, enter your server link (your .onrender.com URL) and access key.
+          files: android/app/build/outputs/apk/debug/app-debug.apk

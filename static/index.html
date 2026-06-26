@@ -7,700 +7,555 @@
 <title>Rent Manager</title>
 <style>
   :root{
-    --bg:#eef2f7;
-    --bg-grad-1:#0f766e;
-    --bg-grad-2:#0e7490;
-    --card:#ffffff;
-    --ink:#0f172a;
-    --muted:#64748b;
-    --line:#e2e8f0;
-    --primary:#0f766e;
-    --primary-d:#0c5d57;
-    --accent:#0ea5e9;
-    --green:#16a34a;
-    --green-bg:#dcfce7;
-    --amber:#d97706;
-    --amber-bg:#fef3c7;
-    --red:#dc2626;
-    --red-bg:#fee2e2;
-    --shadow:0 10px 30px rgba(15,23,42,.08);
-    --shadow-sm:0 2px 8px rgba(15,23,42,.06);
-    --radius:18px;
+    --bg:#eef2f7; --g1:#0f766e; --g2:#0e7490; --card:#fff; --ink:#0f172a; --muted:#64748b;
+    --line:#e2e8f0; --primary:#0f766e; --primary-d:#0c5d57; --green:#16a34a; --green-bg:#dcfce7;
+    --amber:#d97706; --amber-bg:#fef3c7; --red:#dc2626; --red-bg:#fee2e2; --blue:#2563eb;
+    --shadow:0 10px 30px rgba(15,23,42,.08); --shadow-sm:0 2px 8px rgba(15,23,42,.06); --radius:18px;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{margin:0;padding:0}
-  body{
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-    background:var(--bg);
-    color:var(--ink);
-    min-height:100vh;
-    -webkit-font-smoothing:antialiased;
-  }
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg);color:var(--ink);min-height:100vh;-webkit-font-smoothing:antialiased}
   button{font-family:inherit;cursor:pointer;border:none}
-  input,select{font-family:inherit}
-
-  /* ---------- App shell ---------- */
+  input,select,textarea{font-family:inherit}
   .app{max-width:680px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column}
 
-  .topbar{
-    background:linear-gradient(135deg,var(--bg-grad-1),var(--bg-grad-2));
-    color:#fff;padding:18px 18px 22px;border-radius:0 0 26px 26px;
-    box-shadow:var(--shadow);position:sticky;top:0;z-index:20;
-  }
+  /* Top bar */
+  .topbar{background:linear-gradient(135deg,var(--g1),var(--g2));color:#fff;padding:18px 18px 20px;
+    border-radius:0 0 26px 26px;box-shadow:var(--shadow);position:sticky;top:0;z-index:20}
   .topbar-row{display:flex;align-items:center;gap:12px}
-  .logo{
-    width:42px;height:42px;border-radius:12px;background:rgba(255,255,255,.18);
-    display:grid;place-items:center;font-size:22px;font-weight:800;flex:0 0 auto;
-    backdrop-filter:blur(4px);
-  }
-  .brand h1{margin:0;font-size:19px;font-weight:700;letter-spacing:.2px}
+  .logo{width:42px;height:42px;border-radius:12px;background:rgba(255,255,255,.18);display:grid;
+    place-items:center;font-size:22px;font-weight:800;flex:0 0 auto}
+  .brand h1{margin:0;font-size:19px;font-weight:700}
   .brand p{margin:1px 0 0;font-size:12px;opacity:.85}
   .topbar-actions{margin-left:auto;display:flex;gap:8px}
-  .icon-btn{
-    width:38px;height:38px;border-radius:11px;background:rgba(255,255,255,.16);
-    color:#fff;display:grid;place-items:center;transition:.15s;font-size:17px;
-  }
+  .icon-btn{width:38px;height:38px;border-radius:11px;background:rgba(255,255,255,.16);color:#fff;
+    display:grid;place-items:center;font-size:17px;transition:.15s}
   .icon-btn:active{transform:scale(.92);background:rgba(255,255,255,.28)}
-
-  /* ---------- Tabs ---------- */
-  .tabs{
-    display:flex;gap:6px;margin-top:16px;background:rgba(255,255,255,.15);
-    padding:5px;border-radius:14px;
-  }
-  .tab{
-    flex:1;padding:9px 0;border-radius:10px;background:transparent;color:#fff;
-    font-size:14px;font-weight:600;opacity:.8;transition:.15s;
-  }
+  .tabs{display:flex;gap:6px;margin-top:16px;background:rgba(255,255,255,.15);padding:5px;border-radius:14px}
+  .tab{flex:1;padding:9px 0;border-radius:10px;background:transparent;color:#fff;font-size:13.5px;
+    font-weight:600;opacity:.82;transition:.15s}
   .tab.active{background:#fff;color:var(--primary);opacity:1;box-shadow:var(--shadow-sm)}
 
-  /* ---------- Content ---------- */
-  .content{flex:1;padding:18px 16px 90px}
+  .content{flex:1;padding:18px 16px 96px}
   .view{display:none;animation:fade .25s ease}
   .view.active{display:block}
   @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
-
   .section-title{font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;
-    letter-spacing:.6px;margin:4px 2px 10px}
+    letter-spacing:.6px;margin:18px 2px 10px;display:flex;align-items:center;justify-content:space-between}
+  .section-title:first-child{margin-top:4px}
+  .link-btn{color:var(--primary);font-weight:700;font-size:13px;background:none}
 
-  /* ---------- Stats ---------- */
-  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:22px}
-  .stat{background:var(--card);border-radius:var(--radius);padding:14px 12px;box-shadow:var(--shadow-sm)}
-  .stat .val{font-size:20px;font-weight:800;letter-spacing:-.3px}
-  .stat .lbl{font-size:11px;color:var(--muted);margin-top:3px;font-weight:600}
-  .stat.green .val{color:var(--green)}
-  .stat.amber .val{color:var(--amber)}
+  /* Stats */
+  .stats{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .stat{background:var(--card);border-radius:var(--radius);padding:15px 14px;box-shadow:var(--shadow-sm)}
+  .stat .val{font-size:22px;font-weight:800;letter-spacing:-.4px}
+  .stat .lbl{font-size:12px;color:var(--muted);margin-top:3px;font-weight:600}
+  .stat.green .val{color:var(--green)} .stat.amber .val{color:var(--amber)} .stat.blue .val{color:var(--blue)}
 
-  /* ---------- Shed cards ---------- */
-  .shed{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow-sm);
-    margin-bottom:14px;overflow:hidden;border:1px solid var(--line)}
-  .shed-head{display:flex;align-items:center;gap:12px;padding:15px 16px}
-  .shed-ic{width:44px;height:44px;border-radius:13px;display:grid;place-items:center;
-    font-size:20px;flex:0 0 auto;color:#fff}
-  .shed-ic.c1{background:linear-gradient(135deg,#0ea5e9,#2563eb)}
-  .shed-ic.c2{background:linear-gradient(135deg,#8b5cf6,#6366f1)}
-  .shed-ic.c3{background:linear-gradient(135deg,#f59e0b,#ef4444)}
-  .shed-meta{flex:1 1 auto;min-width:0}
-  .shed-name-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-  .shed-name{font-size:16px;font-weight:700}
-  .shed-sub{font-size:12.5px;color:var(--muted);margin-top:3px;white-space:nowrap;
-    overflow:hidden;text-overflow:ellipsis}
-  .pill{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:999px;
-    font-size:11px;font-weight:700;flex:0 0 auto;white-space:nowrap}
-  .pill.due{background:var(--amber-bg);color:var(--amber)}
-  .pill.ok{background:var(--green-bg);color:var(--green)}
+  /* Cards / list */
+  .card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow-sm);
+    border:1px solid var(--line);margin-bottom:12px;overflow:hidden}
+  .trow{display:flex;align-items:center;gap:13px;padding:14px 15px;cursor:pointer;transition:.12s}
+  .trow:active{background:#f8fafc}
+  .avatar{width:44px;height:44px;border-radius:13px;display:grid;place-items:center;color:#fff;
+    font-size:17px;font-weight:800;flex:0 0 auto}
+  .tmeta{flex:1 1 auto;min-width:0}
+  .tname{font-size:15.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .tsub{font-size:12.5px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .tright{text-align:right;flex:0 0 auto}
+  .pill{display:inline-flex;align-items:center;gap:4px;padding:4px 9px;border-radius:999px;
+    font-size:11.5px;font-weight:700;white-space:nowrap}
+  .pill.due{background:var(--amber-bg);color:var(--amber)} .pill.ok{background:var(--green-bg);color:var(--green)}
+  .pill.off{background:#f1f5f9;color:var(--muted)}
+  .chev{color:#cbd5e1;font-size:18px;flex:0 0 auto}
 
-  .shed-body{padding:0 16px 16px;border-top:1px solid var(--line)}
-  .field-row{display:flex;gap:10px;margin-top:12px}
-  .field{flex:1;min-width:0}
-  .field label{display:block;font-size:11px;font-weight:700;color:var(--muted);
-    margin:0 0 5px 2px;text-transform:uppercase;letter-spacing:.4px}
-  .field .control{
-    width:100%;padding:11px 12px;border:1.5px solid var(--line);border-radius:12px;
-    font-size:15px;background:#f8fafc;transition:.15s;color:var(--ink)}
-  .field .control:focus{outline:none;border-color:var(--primary);background:#fff;
-    box-shadow:0 0 0 3px rgba(15,118,110,.12)}
-  .amt-wrap{position:relative}
-  .amt-wrap .rs{position:absolute;left:12px;top:50%;transform:translateY(-50%);
-    color:var(--muted);font-weight:700;font-size:15px;pointer-events:none}
-  .amt-wrap .control{padding-left:26px}
+  .fab{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);z-index:40;background:var(--primary);
+    color:#fff;font-weight:700;font-size:15px;padding:14px 22px;border-radius:999px;box-shadow:var(--shadow);
+    display:flex;align-items:center;gap:8px;max-width:640px}
+  .fab:active{transform:translateX(-50%) scale(.97);background:var(--primary-d)}
 
-  .btn{
-    width:100%;margin-top:13px;padding:13px;border-radius:13px;background:var(--primary);
-    color:#fff;font-size:15px;font-weight:700;transition:.15s;display:flex;
-    align-items:center;justify-content:center;gap:8px}
-  .btn:active{transform:scale(.98);background:var(--primary-d)}
-  .btn:disabled{opacity:.55;pointer-events:none}
-  .btn.ghost{background:#f1f5f9;color:var(--ink)}
-  .btn.danger{background:var(--red-bg);color:var(--red)}
-
-  .all-paid{padding:16px;text-align:center;color:var(--green);font-weight:600;font-size:14px;
-    background:var(--green-bg);border-top:1px solid var(--line)}
-
-  /* ---------- History ---------- */
-  .filters{display:flex;gap:8px;overflow-x:auto;padding-bottom:10px;margin-bottom:6px;
-    scrollbar-width:none}
-  .filters::-webkit-scrollbar{display:none}
-  .chip{padding:8px 14px;border-radius:999px;background:var(--card);border:1.5px solid var(--line);
-    font-size:13px;font-weight:600;color:var(--muted);white-space:nowrap;transition:.15s}
-  .chip.active{background:var(--primary);color:#fff;border-color:var(--primary)}
-  .search{width:100%;padding:11px 14px;border:1.5px solid var(--line);border-radius:12px;
-    font-size:15px;background:var(--card);margin-bottom:14px}
+  .search{width:100%;padding:12px 14px;border:1.5px solid var(--line);border-radius:13px;font-size:15px;
+    background:var(--card);margin-bottom:14px}
   .search:focus{outline:none;border-color:var(--primary)}
 
-  .table-wrap{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow-sm);
-    overflow-x:auto;overflow-y:hidden;border:1px solid var(--line);-webkit-overflow-scrolling:touch}
-  table{width:100%;border-collapse:collapse}
-  th,td{padding:12px 10px;text-align:left;font-size:13px;border-bottom:1px solid var(--line)}
-  th{background:#f8fafc;font-size:11px;text-transform:uppercase;letter-spacing:.4px;
-    color:var(--muted);font-weight:700;position:sticky;top:0}
-  td:first-child,th:first-child{padding-left:14px}
-  tr:last-child td{border-bottom:none}
-  .mcell{font-weight:700;white-space:nowrap}
-  .cell{cursor:pointer;border-radius:8px;transition:.12s;white-space:nowrap}
-  .cell .amt{font-weight:700;color:var(--green);font-size:13.5px}
-  .cell .dt{font-size:11px;color:var(--muted);margin-top:1px;white-space:nowrap}
-  .cell .pending{color:var(--amber);font-weight:700;font-size:12px}
-  .cell:active{background:#f1f5f9}
-  .tap-hint{text-align:center;font-size:12px;color:var(--muted);margin-top:12px}
+  /* Forms */
+  .field{margin-bottom:13px}
+  .field label{display:block;font-size:11px;font-weight:700;color:var(--muted);margin:0 0 5px 2px;
+    text-transform:uppercase;letter-spacing:.4px}
+  .control{width:100%;padding:11px 12px;border:1.5px solid var(--line);border-radius:12px;font-size:15px;
+    background:#f8fafc;color:var(--ink);transition:.15s}
+  .control:focus{outline:none;border-color:var(--primary);background:#fff;box-shadow:0 0 0 3px rgba(15,118,110,.12)}
+  textarea.control{resize:vertical;min-height:54px}
+  .row2{display:flex;gap:10px}.row2>*{flex:1;min-width:0}
+  .amt-wrap{position:relative}
+  .amt-wrap .rs{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted);font-weight:700;pointer-events:none}
+  .amt-wrap .control{padding-left:25px}
 
-  .legend{display:flex;gap:16px;justify-content:center;margin-top:14px;flex-wrap:wrap}
-  .legend span{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px}
-  .dot{width:9px;height:9px;border-radius:50%}
-  .dot.g{background:var(--green)}.dot.a{background:var(--amber)}
+  .btn{width:100%;margin-top:6px;padding:13px;border-radius:13px;background:var(--primary);color:#fff;
+    font-size:15px;font-weight:700;transition:.15s;display:flex;align-items:center;justify-content:center;gap:8px}
+  .btn:active{transform:scale(.98);background:var(--primary-d)}
+  .btn:disabled{opacity:.55;pointer-events:none}
+  .btn.ghost{background:#f1f5f9;color:var(--ink)} .btn.danger{background:var(--red-bg);color:var(--red)}
+  .btn.sm{padding:10px;font-size:14px;margin-top:0}
+  .actions2{display:flex;gap:10px;margin-top:8px}.actions2>*{flex:1}
 
-  /* ---------- Lock screen ---------- */
-  .lock{position:fixed;inset:0;background:linear-gradient(160deg,var(--bg-grad-1),#155e63 60%,#0c4a6e);
+  /* Detail */
+  .dh{display:flex;align-items:center;gap:14px;margin-bottom:6px}
+  .dh .avatar{width:52px;height:52px;border-radius:15px;font-size:20px}
+  .dh h3{margin:0;font-size:20px} .dh p{margin:2px 0 0;color:var(--muted);font-size:13px}
+  .kv{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:16px 0}
+  .kv .box{background:#f8fafc;border:1px solid var(--line);border-radius:13px;padding:11px 12px}
+  .kv .k{font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.3px}
+  .kv .v{font-size:16px;font-weight:800;margin-top:3px}
+  .kv .v.green{color:var(--green)} .kv .v.amber{color:var(--amber)}
+  .hist{margin-top:6px}
+  .hentry{display:flex;align-items:center;gap:10px;padding:11px 2px;border-bottom:1px solid var(--line)}
+  .hentry:last-child{border-bottom:none}
+  .hicon{width:34px;height:34px;border-radius:10px;background:var(--green-bg);color:var(--green);display:grid;place-items:center;flex:0 0 auto;font-size:14px}
+  .hentry .hm{font-weight:700;font-size:14px} .hentry .hd{font-size:12px;color:var(--muted);margin-top:1px}
+  .hentry .ha{margin-left:auto;font-weight:800;color:var(--green);font-size:14px;text-align:right}
+  .del-x{background:none;color:#cbd5e1;font-size:16px;padding:4px 6px;margin-left:6px}
+  .del-x:active{color:var(--red)}
+
+  /* Lock */
+  .lock{position:fixed;inset:0;background:linear-gradient(160deg,var(--g1),#155e63 60%,#0c4a6e);
     display:flex;align-items:center;justify-content:center;padding:24px;z-index:100}
   .lock-card{background:#fff;border-radius:24px;padding:30px 24px;width:100%;max-width:380px;
     box-shadow:0 20px 60px rgba(0,0,0,.3);text-align:center;animation:pop .3s ease}
   @keyframes pop{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:scale(1)}}
-  .lock-logo{width:64px;height:64px;border-radius:18px;margin:0 auto 16px;
-    background:linear-gradient(135deg,var(--bg-grad-1),var(--bg-grad-2));color:#fff;
-    display:grid;place-items:center;font-size:32px;font-weight:800}
-  .lock-card h2{margin:0 0 6px;font-size:21px}
-  .lock-card p{margin:0 0 22px;color:var(--muted);font-size:14px;line-height:1.5}
-  .lock-card .control{width:100%;padding:13px 14px;border:1.5px solid var(--line);
-    border-radius:13px;font-size:16px;text-align:center;background:#f8fafc;margin-bottom:8px}
-  .lock-card .control:focus{outline:none;border-color:var(--primary);background:#fff}
+  .lock-logo{width:64px;height:64px;border-radius:18px;margin:0 auto 16px;background:linear-gradient(135deg,var(--g1),var(--g2));
+    color:#fff;display:grid;place-items:center;font-size:32px;font-weight:800}
+  .lock-card h2{margin:0 0 6px;font-size:21px} .lock-card p{margin:0 0 22px;color:var(--muted);font-size:14px;line-height:1.5}
+  .lock-card .control{text-align:center;margin-bottom:9px}
   .lock-err{color:var(--red);font-size:13px;font-weight:600;min-height:18px;margin-bottom:8px}
 
-  /* ---------- Modal ---------- */
+  /* Modal */
   .modal-bg{position:fixed;inset:0;background:rgba(15,23,42,.5);z-index:90;display:none;
     align-items:flex-end;justify-content:center;backdrop-filter:blur(2px)}
   .modal-bg.show{display:flex;animation:fade .2s}
   .modal{background:#fff;border-radius:24px 24px 0 0;width:100%;max-width:680px;
-    padding:22px 20px calc(22px + env(safe-area-inset-bottom));animation:slideup .28s ease}
+    padding:18px 20px calc(20px + env(safe-area-inset-bottom));animation:slideup .28s ease;
+    max-height:92vh;overflow-y:auto}
   @keyframes slideup{from{transform:translateY(100%)}to{transform:none}}
-  .modal-grip{width:40px;height:4px;border-radius:2px;background:var(--line);margin:0 auto 16px}
-  .modal h3{margin:0 0 2px;font-size:18px}
-  .modal .msub{margin:0 0 18px;color:var(--muted);font-size:13px}
-  .modal-actions{display:flex;gap:10px;margin-top:6px}
-  .modal-actions .btn{margin-top:0}
+  .grip{width:40px;height:4px;border-radius:2px;background:var(--line);margin:0 auto 14px}
+  .modal h3{margin:0 0 2px;font-size:18px} .modal .msub{margin:0 0 16px;color:var(--muted);font-size:13px}
 
-  /* ---------- Toast ---------- */
-  .toast-wrap{position:fixed;bottom:20px;left:0;right:0;z-index:120;display:flex;
-    flex-direction:column;align-items:center;gap:8px;pointer-events:none;padding:0 16px}
-  .toast{background:var(--ink);color:#fff;padding:12px 18px;border-radius:13px;font-size:14px;
-    font-weight:600;box-shadow:var(--shadow);max-width:420px;width:100%;text-align:center;
-    animation:toastin .3s ease;display:flex;align-items:center;gap:9px;justify-content:center}
-  .toast.ok{background:#15803d}.toast.err{background:#b91c1c}
-  @keyframes toastin{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}
+  .toast-wrap{position:fixed;bottom:20px;left:0;right:0;z-index:120;display:flex;flex-direction:column;
+    align-items:center;gap:8px;pointer-events:none;padding:0 16px}
+  .toast{background:var(--ink);color:#fff;padding:12px 18px;border-radius:13px;font-size:14px;font-weight:600;
+    box-shadow:var(--shadow);max-width:420px;width:100%;text-align:center;animation:tin .3s ease}
+  .toast.ok{background:#15803d} .toast.err{background:#b91c1c}
+  @keyframes tin{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}
 
-  /* ---------- Loading / states ---------- */
-  .spinner{width:18px;height:18px;border:2.5px solid rgba(255,255,255,.4);border-top-color:#fff;
-    border-radius:50%;animation:spin .7s linear infinite;display:inline-block}
-  .spinner.dark{border-color:rgba(15,118,110,.25);border-top-color:var(--primary)}
+  .spinner{width:18px;height:18px;border:2.5px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;
+    animation:spin .7s linear infinite;display:inline-block}
   @keyframes spin{to{transform:rotate(360deg)}}
-  .center-state{text-align:center;padding:48px 20px;color:var(--muted)}
-  .center-state .big{font-size:40px;margin-bottom:10px}
-  .center-state p{margin:6px 0 0;font-size:14px}
-  .skeleton{background:linear-gradient(90deg,#eef2f7 25%,#e2e8f0 37%,#eef2f7 63%);
-    background-size:400% 100%;animation:shimmer 1.3s infinite;border-radius:14px;
-    height:120px;margin-bottom:14px}
+  .center-state{text-align:center;padding:44px 20px;color:var(--muted)}
+  .center-state .big{font-size:40px;margin-bottom:8px}
+  .skeleton{background:linear-gradient(90deg,#eef2f7 25%,#e2e8f0 37%,#eef2f7 63%);background-size:400% 100%;
+    animation:shimmer 1.3s infinite;border-radius:14px;height:72px;margin-bottom:12px}
   @keyframes shimmer{0%{background-position:100% 0}100%{background-position:-100% 0}}
   .hidden{display:none !important}
 </style>
 </head>
 <body>
 
-<!-- ===== Lock screen ===== -->
+<!-- Lock -->
 <div class="lock" id="lockScreen">
   <div class="lock-card">
     <div class="lock-logo">₹</div>
     <h2>Rent Manager</h2>
-    <p>Enter your access key to manage rent collections.</p>
+    <p>Enter your access key to continue.</p>
+    <input class="control" id="urlInput" type="url" placeholder="Server link (https://...onrender.com)" autocomplete="off" style="display:none" />
     <input class="control" id="keyInput" type="password" placeholder="Access key" autocomplete="off" />
     <div class="lock-err" id="lockErr"></div>
     <button class="btn" id="unlockBtn" onclick="unlock()">Unlock</button>
   </div>
 </div>
 
-<!-- ===== Main app ===== -->
+<!-- App -->
 <div class="app" id="app" style="display:none">
   <header class="topbar">
     <div class="topbar-row">
       <div class="logo">₹</div>
-      <div class="brand">
-        <h1>Rent Manager</h1>
-        <p id="topSub">Tap a shed to record payment</p>
-      </div>
+      <div class="brand"><h1>Rent Manager</h1><p id="topSub">Loading…</p></div>
       <div class="topbar-actions">
-        <button class="icon-btn" title="Refresh" onclick="loadData(true)">⟳</button>
+        <button class="icon-btn" title="Refresh" onclick="loadAll(true)">⟳</button>
         <button class="icon-btn" title="Settings" onclick="openSettings()">⚙</button>
       </div>
     </div>
     <nav class="tabs">
-      <button class="tab active" id="tab-home" onclick="switchTab('home')">🏠 Dashboard</button>
-      <button class="tab" id="tab-history" onclick="switchTab('history')">📜 History</button>
+      <button class="tab active" id="tab-home" onclick="switchTab('home')">🏠 Home</button>
+      <button class="tab" id="tab-tenants" onclick="switchTab('tenants')">👥 Tenants</button>
+      <button class="tab" id="tab-pay" onclick="switchTab('pay')">💸 Payments</button>
     </nav>
   </header>
 
   <main class="content">
-    <!-- Dashboard -->
-    <section class="view active" id="view-home">
-      <div class="stats" id="stats"></div>
-      <div class="section-title">Record a payment</div>
-      <div id="sheds"></div>
+    <section class="view active" id="view-home"></section>
+    <section class="view" id="view-tenants">
+      <input class="search" id="tsearch" type="text" placeholder="🔍  Search tenant…" oninput="renderTenants()" />
+      <div id="tenantList"></div>
     </section>
-
-    <!-- History -->
-    <section class="view" id="view-history">
-      <div class="filters" id="filters"></div>
-      <input class="search" id="search" type="text" placeholder="🔍  Search month…" oninput="renderHistory()" />
-      <div id="historyBody"></div>
-    </section>
+    <section class="view" id="view-pay"><div id="payBody"></div></section>
   </main>
+
+  <button class="fab" id="fab" onclick="onFab()">＋ <span id="fabLabel">Record Payment</span></button>
 </div>
 
-<!-- ===== Payment modal ===== -->
-<div class="modal-bg" id="modalBg" onclick="if(event.target===this)closeModal()">
-  <div class="modal" id="modal"></div>
-</div>
+<!-- Generic modal -->
+<div class="modal-bg" id="modalBg" onclick="if(event.target===this)closeModal()"><div class="modal" id="modal"></div></div>
 
-<!-- ===== Settings modal ===== -->
+<!-- Settings -->
 <div class="modal-bg" id="settingsBg" onclick="if(event.target===this)closeSettings()">
   <div class="modal">
-    <div class="modal-grip"></div>
-    <h3>Settings</h3>
-    <p class="msub">Manage your access and data.</p>
-    <div class="field" style="margin-bottom:14px">
-      <label>Access key</label>
-      <div class="control" id="keyMask" style="background:#f1f5f9;color:var(--muted)"></div>
-    </div>
-    <button class="btn ghost" onclick="loadData(true);closeSettings()" style="margin-bottom:10px">⟳ Refresh data</button>
+    <div class="grip"></div>
+    <h3>Settings</h3><p class="msub">Manage your access and data.</p>
+    <div class="field"><label>Access key</label><div class="control" id="keyMask" style="background:#f1f5f9;color:var(--muted)"></div></div>
+    <div class="field" id="serverRow" style="display:none"><label>Server link</label>
+      <div class="control" id="serverInfo" style="background:#f1f5f9;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div></div>
+    <button class="btn ghost" onclick="loadAll(true);closeSettings()" style="margin-bottom:10px">⟳ Refresh data</button>
     <button class="btn danger" onclick="lockApp()">🔒 Lock app</button>
-    <p style="text-align:center;color:var(--muted);font-size:12px;margin:16px 0 0">Rent Manager • Data stored in Google Sheets</p>
+    <p style="text-align:center;color:var(--muted);font-size:12px;margin:14px 0 0">Rent Manager • Google Sheets</p>
   </div>
 </div>
 
 <div class="toast-wrap" id="toastWrap"></div>
 
 <script>
-/* ========================================================================
-   Rent Manager — front-end logic (vanilla JS, no dependencies)
-   ======================================================================== */
-const KEY_STORAGE = "rent_api_key";
-let API_KEY = localStorage.getItem(KEY_STORAGE) || "";
-let DATA = null;            // { month_col, sheds:[], rows:[] }
-let activeTab = "home";
-let historyFilter = 0;      // 0 = all, else shed id
+/* ===================== Rent Manager — tenant + rent-entry app ===================== */
+const KEY_STORAGE="rent_api_key", URL_STORAGE="rent_server_url";
+let API_KEY=localStorage.getItem(KEY_STORAGE)||"";
+let API_BASE=localStorage.getItem(URL_STORAGE)||"";
+const IS_APP=location.protocol==="capacitor:"||location.protocol==="file:"||
+  location.hostname==="localhost"||location.hostname==="127.0.0.1";
+let STATE=null;            // {tenants, summary, current_month, currency}
+let activeTab="home";
+const MONTHS=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const COLORS=["#0ea5e9","#8b5cf6","#f59e0b","#ef4444","#10b981","#6366f1","#ec4899","#14b8a6"];
 
-/* ---------- API helpers ---------- */
-async function api(path, opts = {}) {
-  const headers = Object.assign({ "x-api-key": API_KEY }, opts.headers || {});
-  if (opts.body) headers["Content-Type"] = "application/json";
-  const res = await fetch(path, Object.assign({}, opts, { headers }));
-  let json = null;
-  try { json = await res.json(); } catch (e) {}
-  if (!res.ok) {
-    const msg = (json && (json.error || json.message)) || ("Error " + res.status);
-    const err = new Error(msg); err.status = res.status; throw err;
-  }
+/* ---------- API ---------- */
+async function api(path,opts={}){
+  const headers=Object.assign({"x-api-key":API_KEY},opts.headers||{});
+  if(opts.body) headers["Content-Type"]="application/json";
+  const res=await fetch(API_BASE+path,Object.assign({},opts,{headers}));
+  let json=null; try{json=await res.json();}catch(e){}
+  if(!res.ok){const m=(json&&(json.error||json.message))||("Error "+res.status);const e=new Error(m);e.status=res.status;throw e;}
   return json;
 }
+function normalizeUrl(u){u=(u||"").trim().replace(/\/+$/,"");if(!u)return"";if(!/^https?:\/\//i.test(u))u="https://"+u;return u;}
 
-/* ---------- Unlock flow ---------- */
-async function unlock() {
-  const input = document.getElementById("keyInput");
-  const errEl = document.getElementById("lockErr");
-  const btn = document.getElementById("unlockBtn");
-  const key = input.value.trim();
-  if (!key) { errEl.textContent = "Please enter your key."; return; }
-  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Checking…';
-  errEl.textContent = "";
-  try {
-    const prev = API_KEY; API_KEY = key;
-    await api("/api/verify");
-    localStorage.setItem(KEY_STORAGE, key);
-    document.getElementById("lockScreen").style.display = "none";
-    document.getElementById("app").style.display = "flex";
-    await loadData();
-  } catch (e) {
-    errEl.textContent = e.status === 401 ? "Wrong key. Try again." : ("Could not connect: " + e.message);
-  } finally {
-    btn.disabled = false; btn.textContent = "Unlock";
+/* ---------- helpers ---------- */
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+function money(n){n=Number(n)||0;return "₹"+Math.round(n).toLocaleString("en-IN");}
+function todayISO(){const d=new Date(),p=n=>String(n).padStart(2,"0");return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate());}
+function curMonth(){return (STATE&&STATE.current_month)||todayISO().slice(0,7);}
+function monthLabel(ym){if(!ym)return"—";const a=String(ym).split("-");if(a.length<2)return ym;const m=parseInt(a[1],10);return (MONTHS[m-1]||"?")+" "+a[0];}
+function initials(name){name=(name||"?").trim();const p=name.split(/[\s_]+/).filter(Boolean);return ((p[0]||"")[0]||"?").toUpperCase()+((p[1]||"")[0]||"").toUpperCase();}
+function colorFor(id){let h=0;id=String(id);for(let i=0;i<id.length;i++)h=(h*31+id.charCodeAt(i))>>>0;return COLORS[h%COLORS.length];}
+function tenantById(id){return (STATE&&STATE.tenants||[]).find(t=>t.tenant_id===id);}
+function isActive(t){return !(String(t.status||"").toLowerCase() in {inactive:1,left:1,moved:1,no:1});}
+
+/* recent + pending months for a tenant (for the payment dropdown) */
+function monthOptions(t){
+  const set=new Set(t&&t.pending_months||[]);
+  const d=new Date();
+  for(let i=0;i<15;i++){const y=d.getFullYear(),m=d.getMonth()-i;const dt=new Date(y,m,1);
+    set.add(dt.getFullYear()+"-"+String(dt.getMonth()+1).padStart(2,"0"));}
+  return Array.from(set).sort().reverse();
+}
+
+/* ---------- unlock / boot ---------- */
+async function unlock(){
+  const errEl=document.getElementById("lockErr"),btn=document.getElementById("unlockBtn");
+  const key=document.getElementById("keyInput").value.trim();
+  if(IS_APP){const url=normalizeUrl(document.getElementById("urlInput").value);
+    if(!url){errEl.textContent="Enter your server link.";return;} API_BASE=url;}
+  if(!key){errEl.textContent="Please enter your key.";return;}
+  btn.disabled=true;btn.innerHTML='<span class="spinner"></span> Checking…';errEl.textContent="";
+  try{
+    API_KEY=key; await api("/api/verify");
+    localStorage.setItem(KEY_STORAGE,key); if(IS_APP)localStorage.setItem(URL_STORAGE,API_BASE);
+    document.getElementById("lockScreen").style.display="none";
+    document.getElementById("app").style.display="flex";
+    await loadAll();
+  }catch(e){
+    errEl.textContent=e.status===401?"Wrong key. Try again.":("Could not connect"+(IS_APP?" — check the server link. ":". ")+e.message);
+  }finally{btn.disabled=false;btn.textContent="Unlock";}
+}
+document.getElementById("keyInput").addEventListener("keydown",e=>{if(e.key==="Enter")unlock();});
+function lockApp(){localStorage.removeItem(KEY_STORAGE);API_KEY="";STATE=null;closeSettings();
+  document.getElementById("app").style.display="none";document.getElementById("lockScreen").style.display="flex";
+  document.getElementById("keyInput").value="";}
+
+/* ---------- load ---------- */
+function skeletons(el,n){let h="";for(let i=0;i<(n||4);i++)h+='<div class="skeleton"></div>';document.getElementById(el).innerHTML=h;}
+async function loadAll(refresh){
+  if(!STATE){document.getElementById("view-home").innerHTML='<div class="skeleton" style="height:96px"></div>';skeletons("tenantList",5);}
+  try{
+    STATE=await api("/api/tenants");
+    renderHome();renderTenants();renderPay();updateTopSub();
+    if(refresh)toast("Data refreshed","ok");
+  }catch(e){
+    if(e.status===401){lockApp();return;}
+    document.getElementById("view-home").innerHTML=errState(e.message);
   }
 }
-document.getElementById("keyInput").addEventListener("keydown", e => { if (e.key === "Enter") unlock(); });
+function errState(msg){return `<div class="center-state"><div class="big">⚠️</div><p><b>Couldn't load data</b></p>
+  <p>${esc(msg)}</p><button class="btn ghost" style="max-width:220px;margin:14px auto 0" onclick="loadAll(true)">Try again</button></div>`;}
+function updateTopSub(){const s=STATE.summary;document.getElementById("topSub").textContent=
+  s.pending_tenants>0?(s.pending_tenants+" tenant"+(s.pending_tenants>1?"s":"")+" with dues"):"All rent collected 🎉";}
 
-function lockApp() {
-  localStorage.removeItem(KEY_STORAGE);
-  API_KEY = ""; DATA = null;
-  closeSettings();
-  document.getElementById("app").style.display = "none";
-  document.getElementById("lockScreen").style.display = "flex";
-  document.getElementById("keyInput").value = "";
-}
-
-/* ---------- Data loading ---------- */
-function showSkeletons() {
-  document.getElementById("sheds").innerHTML =
-    '<div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>';
-  document.getElementById("stats").innerHTML = "";
-}
-
-async function loadData(isRefresh) {
-  if (!DATA) showSkeletons();
-  try {
-    DATA = await api("/api/records");
-    renderStats();
-    renderSheds();
-    renderFilters();
-    renderHistory();
-    if (isRefresh) toast("Data refreshed", "ok");
-  } catch (e) {
-    if (e.status === 401) { lockApp(); return; }
-    document.getElementById("sheds").innerHTML =
-      `<div class="center-state"><div class="big">⚠️</div><p><b>Couldn't load data</b></p><p>${esc(e.message)}</p>
-       <button class="btn ghost" style="max-width:200px;margin:16px auto 0" onclick="loadData(true)">Try again</button></div>`;
-    document.getElementById("stats").innerHTML = "";
-  }
-}
-
-/* ---------- Derived helpers ---------- */
-function nextDueMonth(shedId) {
-  for (const r of DATA.rows) {
-    if (!r.cells[shedId].paid) return r.month;
-  }
-  return null;
-}
-function unpaidMonths(shedId) {
-  return DATA.rows.filter(r => !r.cells[shedId].paid).map(r => r.month);
-}
-function lastPaid(shedId) {
-  let last = null;
-  for (const r of DATA.rows) {
-    const c = r.cells[shedId];
-    if (c.paid) last = { month: r.month, amount: c.amount, date: c.date };
-  }
-  return last;
-}
-function totalCollected() {
-  let sum = 0;
-  for (const r of DATA.rows)
-    for (const s of DATA.sheds) {
-      const v = parseFloat(String(r.cells[s.id].amount).replace(/[^0-9.]/g, ""));
-      if (!isNaN(v)) sum += v;
-    }
-  return sum;
-}
-function pendingCount() {
-  let n = 0;
-  for (const r of DATA.rows)
-    for (const s of DATA.sheds)
-      if (!r.cells[s.id].paid) n++;
-  return n;
-}
-
-/* ---------- Formatting ---------- */
-function fmtMoney(n) {
-  return "₹" + Math.round(n).toLocaleString("en-IN");
-}
-function esc(s) {
-  return String(s == null ? "" : s).replace(/[&<>"']/g, c =>
-    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-}
-function todayInput() {
-  const d = new Date();
-  const p = n => String(n).padStart(2, "0");
-  return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate());
-}
-/* Convert the date input (YYYY-MM-DD) to match the format already used in the
-   sheet's date column, so new entries look consistent. Defaults to DD-MM-YYYY. */
-function formatDateForSheet(isoStr, shedId) {
-  if (!isoStr) return "";
-  const [y, m, d] = isoStr.split("-");
-  let sep = "-", order = "dmy";
-  if (DATA) {
-    for (const r of DATA.rows) {
-      const v = r.cells[shedId] && r.cells[shedId].date;
-      if (v && /\d/.test(v)) {
-        if (v.indexOf("/") > -1) sep = "/";
-        else if (v.indexOf("-") > -1) sep = "-";
-        else if (v.indexOf(".") > -1) sep = ".";
-        const parts = v.split(/[\/\-.]/);
-        if (parts[0] && parts[0].length === 4) order = "ymd";
-        else order = "dmy";
-        break;
-      }
-    }
-  }
-  if (order === "ymd") return [y, m, d].join(sep);
-  return [d, m, y].join(sep);
-}
-
-/* ---------- Render: stats ---------- */
-function renderStats() {
-  const pend = pendingCount();
-  document.getElementById("stats").innerHTML = `
-    <div class="stat green"><div class="val">${fmtMoney(totalCollected())}</div><div class="lbl">Collected</div></div>
-    <div class="stat amber"><div class="val">${pend}</div><div class="lbl">Pending</div></div>
-    <div class="stat"><div class="val">${DATA.sheds.length}</div><div class="lbl">Sheds</div></div>`;
-  document.getElementById("topSub").textContent =
-    pend > 0 ? `${pend} payment${pend > 1 ? "s" : ""} pending` : "All caught up 🎉";
-}
-
-/* ---------- Render: dashboard shed cards ---------- */
-function renderSheds() {
-  const wrap = document.getElementById("sheds");
-  wrap.innerHTML = "";
-  DATA.sheds.forEach(s => {
-    const due = nextDueMonth(s.id);
-    const last = lastPaid(s.id);
-    const unpaid = unpaidMonths(s.id);
-    const card = document.createElement("div");
-    card.className = "shed";
-
-    const pill = due
-      ? `<span class="pill due">● Due: ${esc(due)}</span>`
-      : `<span class="pill ok">✓ All paid</span>`;
-    const lastTxt = last
-      ? `Last paid ${fmtMoney(parseFloat(String(last.amount).replace(/[^0-9.]/g,""))||0)}`
-      : "No payments yet";
-
-    let body;
-    if (!due) {
-      body = `<div class="all-paid">✓ Every month is paid for this shed</div>`;
-    } else {
-      const opts = unpaid.map(m =>
-        `<option value="${esc(m)}" ${m===due?"selected":""}>${esc(m)}</option>`).join("");
-      const prefill = last ? (String(last.amount).replace(/[^0-9.]/g,"")) : "";
-      body = `
-      <div class="shed-body">
-        <div class="field-row">
-          <div class="field">
-            <label>Month</label>
-            <select class="control" id="m-${s.id}">${opts}</select>
-          </div>
-        </div>
-        <div class="field-row">
-          <div class="field">
-            <label>Amount</label>
-            <div class="amt-wrap"><span class="rs">₹</span>
-              <input class="control" id="a-${s.id}" type="number" inputmode="numeric"
-                     placeholder="0" value="${esc(prefill)}" /></div>
-          </div>
-          <div class="field">
-            <label>Paid date</label>
-            <input class="control" id="d-${s.id}" type="date" value="${todayInput()}" />
-          </div>
-        </div>
-        <button class="btn" id="btn-${s.id}" onclick="quickPay(${s.id})">✓ Record Payment</button>
-      </div>`;
-    }
-
-    card.innerHTML = `
-      <div class="shed-head">
-        <div class="shed-ic c${s.id}">🏠</div>
-        <div class="shed-meta">
-          <div class="shed-name-row">
-            <span class="shed-name">${esc(s.label)}</span>
-            ${pill}
-          </div>
-          <div class="shed-sub">${esc(lastTxt)}</div>
-        </div>
-      </div>
-      ${body}`;
-    wrap.appendChild(card);
-  });
-}
-
-/* ---------- Record payment from dashboard ---------- */
-async function quickPay(shedId) {
-  const shed = DATA.sheds.find(s => s.id === shedId);
-  const month = document.getElementById("m-" + shedId).value;
-  const amount = document.getElementById("a-" + shedId).value.trim();
-  const dateIso = document.getElementById("d-" + shedId).value;
-  const btn = document.getElementById("btn-" + shedId);
-  if (!amount || parseFloat(amount) <= 0) { toast("Enter a valid amount", "err"); return; }
-  if (!dateIso) { toast("Pick a paid date", "err"); return; }
-  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Saving…';
-  try {
-    await submitPayment(shed, month, amount, formatDateForSheet(dateIso, shedId));
-    toast(`${shed.label}: ${fmtMoney(parseFloat(amount))} recorded for ${month}`, "ok");
-    await loadData();
-  } catch (e) {
-    btn.disabled = false; btn.innerHTML = "✓ Record Payment";
-    toast("Failed: " + e.message, "err");
-  }
-}
-
-async function submitPayment(shed, month, amount, paidDate) {
-  const res = await api("/api/update", {
-    method: "POST",
-    body: JSON.stringify({
-      updates: [{ month, amt_col: shed.amt_col, date_col: shed.date_col,
-                  amount: String(amount), paid_date: paidDate }]
-    })
-  });
-  const r = (res.results || [])[0];
-  if (!r || r.status !== "ok") throw new Error((r && r.reason) || "update rejected");
-  return r;
-}
-
-/* ---------- History view ---------- */
-function renderFilters() {
-  const f = document.getElementById("filters");
-  let html = `<button class="chip ${historyFilter===0?"active":""}" onclick="setFilter(0)">All sheds</button>`;
-  DATA.sheds.forEach(s => {
-    html += `<button class="chip ${historyFilter===s.id?"active":""}" onclick="setFilter(${s.id})">${esc(s.label)}</button>`;
-  });
-  f.innerHTML = html;
-}
-function setFilter(id) { historyFilter = id; renderFilters(); renderHistory(); }
-
-function renderHistory() {
-  if (!DATA) return;
-  const q = (document.getElementById("search").value || "").toLowerCase().trim();
-  const rows = DATA.rows.filter(r => !q || r.month.toLowerCase().includes(q));
-  const sheds = historyFilter ? DATA.sheds.filter(s => s.id === historyFilter) : DATA.sheds;
-  const body = document.getElementById("historyBody");
-
-  if (rows.length === 0) {
-    body.innerHTML = `<div class="center-state"><div class="big">🗓️</div><p>No months found</p></div>`;
-    return;
-  }
-
-  let head = "<tr><th>Month</th>" + sheds.map(s => `<th>${esc(s.label)}</th>`).join("") + "</tr>";
-  let trs = rows.map(r => {
-    let tds = `<td class="mcell">${esc(r.month)}</td>`;
-    sheds.forEach(s => {
-      const c = r.cells[s.id];
-      const inner = c.paid
-        ? `<div class="amt">₹${esc(fmtNum(c.amount))}</div><div class="dt">${esc(c.date || "—")}</div>`
-        : `<span class="pending">+ Add</span>`;
-      tds += `<td class="cell" onclick="openPayModal(${s.id},'${esc(r.month).replace(/'/g,"\\'")}')">${inner}</td>`;
-    });
-    return "<tr>" + tds + "</tr>";
-  }).join("");
-
-  body.innerHTML = `<div class="table-wrap"><table><thead>${head}</thead><tbody>${trs}</tbody></table></div>
-    <div class="legend"><span><span class="dot g"></span>Paid</span><span><span class="dot a"></span>Pending</span></div>
-    <div class="tap-hint">Tap any cell to add or edit a payment</div>`;
-}
-function fmtNum(v) {
-  const n = parseFloat(String(v).replace(/[^0-9.]/g, ""));
-  return isNaN(n) ? esc(v) : Math.round(n).toLocaleString("en-IN");
-}
-
-/* ---------- Payment modal (from history) ---------- */
-function openPayModal(shedId, month) {
-  const shed = DATA.sheds.find(s => s.id === shedId);
-  const row = DATA.rows.find(r => r.month === month);
-  const cell = row.cells[shedId];
-  const existing = cell.paid;
-  const amt = existing ? String(cell.amount).replace(/[^0-9.]/g, "") : "";
-  const m = document.getElementById("modal");
-  m.innerHTML = `
-    <div class="modal-grip"></div>
-    <h3>${esc(shed.label)}</h3>
-    <p class="msub">${existing ? "Edit payment" : "Record payment"} for <b>${esc(month)}</b></p>
-    <div class="field-row">
-      <div class="field">
-        <label>Amount</label>
-        <div class="amt-wrap"><span class="rs">₹</span>
-          <input class="control" id="mAmt" type="number" inputmode="numeric" placeholder="0" value="${esc(amt)}" /></div>
-      </div>
-      <div class="field">
-        <label>Paid date</label>
-        <input class="control" id="mDate" type="date" value="${todayInput()}" />
-      </div>
-    </div>
-    <div class="modal-actions">
-      <button class="btn ghost" onclick="closeModal()">Cancel</button>
-      <button class="btn" id="mBtn" onclick="modalPay(${shedId},'${esc(month).replace(/'/g,"\\'")}')">✓ Save</button>
+/* ---------- HOME ---------- */
+function renderHome(){
+  const s=STATE.summary;
+  const pend=STATE.tenants.filter(t=>t.pending_amount>0).sort((a,b)=>b.pending_amount-a.pending_amount);
+  let html=`
+    <div class="stats">
+      <div class="stat amber"><div class="val">${money(s.total_pending)}</div><div class="lbl">Total pending</div></div>
+      <div class="stat green"><div class="val">${money(s.collected_this_month)}</div><div class="lbl">Collected (${monthLabel(s.current_month)})</div></div>
+      <div class="stat blue"><div class="val">${money(s.total_monthly_rent)}</div><div class="lbl">Monthly rent</div></div>
+      <div class="stat"><div class="val">${s.tenant_count}</div><div class="lbl">Tenants</div></div>
     </div>`;
-  document.getElementById("modalBg").classList.add("show");
-  setTimeout(() => document.getElementById("mAmt").focus(), 250);
-}
-function closeModal() { document.getElementById("modalBg").classList.remove("show"); }
-
-async function modalPay(shedId, month) {
-  const shed = DATA.sheds.find(s => s.id === shedId);
-  const amount = document.getElementById("mAmt").value.trim();
-  const dateIso = document.getElementById("mDate").value;
-  const btn = document.getElementById("mBtn");
-  if (!amount || parseFloat(amount) <= 0) { toast("Enter a valid amount", "err"); return; }
-  if (!dateIso) { toast("Pick a paid date", "err"); return; }
-  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Saving…';
-  try {
-    await submitPayment(shed, month, amount, formatDateForSheet(dateIso, shedId));
-    closeModal();
-    toast(`${shed.label}: ${fmtMoney(parseFloat(amount))} saved for ${month}`, "ok");
-    await loadData();
-  } catch (e) {
-    btn.disabled = false; btn.innerHTML = "✓ Save";
-    toast("Failed: " + e.message, "err");
+  html+=`<div class="section-title">Needs attention ${pend.length?`<span class="link-btn" onclick="switchTab('tenants')">All tenants ›</span>`:""}</div>`;
+  if(!pend.length){
+    html+=`<div class="card"><div class="center-state" style="padding:30px 20px"><div class="big">✅</div><p>Everyone is paid up for now.</p></div></div>`;
+  }else{
+    html+='<div class="card">'+pend.map(t=>tenantRow(t,true)).join("")+'</div>';
   }
+  document.getElementById("view-home").innerHTML=html;
 }
 
-/* ---------- Tabs / settings ---------- */
-function switchTab(t) {
-  activeTab = t;
-  document.getElementById("tab-home").classList.toggle("active", t === "home");
-  document.getElementById("tab-history").classList.toggle("active", t === "history");
-  document.getElementById("view-home").classList.toggle("active", t === "home");
-  document.getElementById("view-history").classList.toggle("active", t === "history");
+/* one tenant row (used in Home + Tenants) */
+function tenantRow(t,showPay){
+  const due=t.pending_amount>0;
+  const pill=!isActive(t)?`<span class="pill off">Left</span>`
+    :due?`<span class="pill due">${money(t.pending_amount)}</span>`
+    :`<span class="pill ok">✓ Paid</span>`;
+  const sub=due?`${t.pending_months.length} month${t.pending_months.length>1?"s":""} due • ${money(t.monthly_rent)}/mo`
+    :`${money(t.monthly_rent)}/mo • last ${t.last_payment?monthLabelFromDate(t.last_payment):"—"}`;
+  return `<div class="trow" onclick="openTenant('${esc(t.tenant_id)}')">
+    <div class="avatar" style="background:${colorFor(t.tenant_id)}">${esc(initials(t.tenant_name))}</div>
+    <div class="tmeta"><div class="tname">${esc(t.tenant_name||t.tenant_id)}</div><div class="tsub">${esc(sub)}</div></div>
+    <div class="tright">${pill}</div><div class="chev">›</div>
+  </div>`;
 }
-function openSettings() {
-  const k = API_KEY || "";
-  document.getElementById("keyMask").textContent =
-    k.length > 4 ? "••••••••" + k.slice(-4) : "••••";
-  document.getElementById("settingsBg").classList.add("show");
-}
-function closeSettings() { document.getElementById("settingsBg").classList.remove("show"); }
+function monthLabelFromDate(d){d=String(d||"");return d.length>=7?monthLabel(d.slice(0,7)):d;}
 
-/* ---------- Toast ---------- */
-function toast(msg, type) {
-  const wrap = document.getElementById("toastWrap");
-  // If a bottom-sheet modal is open, show the toast at the top so it doesn't
-  // cover the modal's action buttons.
-  const modalOpen = document.querySelector(".modal-bg.show");
-  wrap.style.bottom = modalOpen ? "auto" : "20px";
-  wrap.style.top = modalOpen ? "20px" : "auto";
-  const t = document.createElement("div");
-  t.className = "toast " + (type || "");
-  t.innerHTML = (type === "ok" ? "✓ " : type === "err" ? "✕ " : "") + esc(msg);
-  wrap.appendChild(t);
-  setTimeout(() => { t.style.opacity = "0"; t.style.transition = ".3s"; setTimeout(() => t.remove(), 300); }, 2600);
+/* ---------- TENANTS ---------- */
+function renderTenants(){
+  if(!STATE)return;
+  const q=(document.getElementById("tsearch").value||"").toLowerCase().trim();
+  let list=STATE.tenants.slice().sort((a,b)=>(a.tenant_name||"").localeCompare(b.tenant_name||""));
+  if(q)list=list.filter(t=>(t.tenant_name||"").toLowerCase().includes(q)||(t.tenant_id||"").toLowerCase().includes(q));
+  const el=document.getElementById("tenantList");
+  if(!list.length){el.innerHTML=`<div class="center-state"><div class="big">👥</div><p>No tenants found</p></div>`;return;}
+  el.innerHTML='<div class="card">'+list.map(t=>tenantRow(t)).join("")+'</div>';
 }
 
-/* ---------- Boot ---------- */
-(async function init() {
-  if (API_KEY) {
-    try {
-      await api("/api/verify");
-      document.getElementById("lockScreen").style.display = "none";
-      document.getElementById("app").style.display = "flex";
-      await loadData();
-    } catch (e) {
-      // stored key invalid or server unreachable -> show lock
-      if (e.status === 401) localStorage.removeItem(KEY_STORAGE);
-      document.getElementById("lockScreen").style.display = "flex";
-    }
-  } else {
-    document.getElementById("lockScreen").style.display = "flex";
-  }
+/* ---------- PAYMENTS ---------- */
+async function renderPay(){
+  const el=document.getElementById("payBody");
+  el.innerHTML=`<div class="section-title">Recent payments</div><div id="recentEntries"><div class="skeleton"></div><div class="skeleton"></div></div>`;
+  try{
+    const r=await api("/api/entries");
+    const entries=(r.entries||[]).slice(0,40);
+    const box=document.getElementById("recentEntries");
+    if(!entries.length){box.innerHTML=`<div class="card"><div class="center-state" style="padding:30px"><div class="big">🧾</div><p>No payments yet</p></div></div>`;return;}
+    box.innerHTML='<div class="card" style="padding:4px 14px">'+entries.map(e=>entryRow(e,true)).join("")+'</div>';
+  }catch(e){document.getElementById("recentEntries").innerHTML=errState(e.message);}
+}
+function entryRow(e,showName){
+  const nm=showName?(e.tenant_name||e.tenant_id):monthLabel(norm7(e.for_month));
+  const sub=showName?`${monthLabel(norm7(e.for_month))} • ${esc(e.date_paid||"")}`:`${esc(e.date_paid||"")} • ${esc(e.payment_type||"")}`;
+  return `<div class="hentry"><div class="hicon">₹</div>
+    <div><div class="hm">${esc(nm)}</div><div class="hd">${esc(sub)}</div></div>
+    <div class="ha">${money(e.amount)}</div></div>`;
+}
+function norm7(s){s=String(s||"");return s.length>=7?s.slice(0,7):s;}
+
+/* ---------- TENANT DETAIL ---------- */
+async function openTenant(id){
+  const t=tenantById(id); if(!t)return;
+  const m=document.getElementById("modal");
+  m.innerHTML=`<div class="grip"></div>
+    <div class="dh"><div class="avatar" style="background:${colorFor(t.tenant_id)}">${esc(initials(t.tenant_name))}</div>
+      <div><h3>${esc(t.tenant_name||t.tenant_id)}</h3><p>${esc(t.tenant_id)}${t.room?" • Room "+esc(t.room):""}${t.phone?" • "+esc(t.phone):""}</p></div></div>
+    <div class="kv">
+      <div class="box"><div class="k">Monthly rent</div><div class="v">${money(t.monthly_rent)}</div></div>
+      <div class="box"><div class="k">Pending</div><div class="v ${t.pending_amount>0?'amber':'green'}">${t.pending_amount>0?money(t.pending_amount):"Clear"}</div></div>
+      <div class="box"><div class="k">Advance</div><div class="v">${money(t.advance)}</div></div>
+      <div class="box"><div class="k">Joined</div><div class="v" style="font-size:14px">${esc(monthLabelFromDate(t.date_joined))}</div></div>
+    </div>
+    ${t.pending_amount>0?`<div class="pill due" style="margin-bottom:6px">Due: ${t.pending_months.map(monthLabel).join(", ")}</div>`:""}
+    <button class="btn" onclick="openPay('${esc(t.tenant_id)}')">＋ Record Payment</button>
+    <div class="actions2"><button class="btn ghost sm" onclick="openTenantForm('${esc(t.tenant_id)}')">✎ Edit</button>
+      <button class="btn danger sm" onclick="confirmDeleteTenant('${esc(t.tenant_id)}')">🗑 Remove</button></div>
+    <div class="section-title" style="margin-bottom:6px">Payment history</div>
+    <div class="hist" id="thist"><div class="skeleton" style="height:48px"></div></div>`;
+  showModal();
+  try{
+    const r=await api("/api/entries?tenant_id="+encodeURIComponent(id));
+    const es=r.entries||[];
+    document.getElementById("thist").innerHTML=es.length
+      ? es.map(e=>`<div class="hentry"><div class="hicon">₹</div>
+          <div><div class="hm">${monthLabel(norm7(e.for_month))}</div><div class="hd">${esc(e.date_paid||"")} • ${esc(e.payment_type||"")}</div></div>
+          <div class="ha">${money(e.amount)}</div>
+          <button class="del-x" onclick="deleteEntry('${esc(e.id)}','${esc(id)}')">✕</button></div>`).join("")
+      : `<p style="color:var(--muted);font-size:14px;text-align:center;padding:14px">No payments recorded yet.</p>`;
+  }catch(e){document.getElementById("thist").innerHTML=`<p style="color:var(--red);font-size:13px">${esc(e.message)}</p>`;}
+}
+
+/* ---------- RECORD PAYMENT ---------- */
+function openPay(presetId){
+  const tenants=STATE.tenants.filter(isActive);
+  const t=presetId?tenantById(presetId):tenants[0];
+  const opts=monthOptions(t);
+  const defMonth=(t&&t.pending_months&&t.pending_months[0])||curMonth();
+  const m=document.getElementById("modal");
+  m.innerHTML=`<div class="grip"></div><h3>Record Payment</h3><p class="msub">Log a rent payment to RentEntries.</p>
+    <div class="field"><label>Tenant</label>
+      <select class="control" id="pTenant" onchange="onPayTenantChange()">
+        ${STATE.tenants.map(x=>`<option value="${esc(x.tenant_id)}" ${x.tenant_id===(t&&t.tenant_id)?"selected":""}>${esc(x.tenant_name||x.tenant_id)}</option>`).join("")}
+      </select></div>
+    <div class="row2">
+      <div class="field"><label>For month</label><select class="control" id="pMonth">${opts.map(mn=>`<option value="${mn}" ${mn===defMonth?"selected":""}>${monthLabel(mn)}</option>`).join("")}</select></div>
+      <div class="field"><label>Amount</label><div class="amt-wrap"><span class="rs">₹</span><input class="control" id="pAmount" type="number" inputmode="numeric" value="${t?Math.round(t.monthly_rent)||"":""}"/></div></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label>Date paid</label><input class="control" id="pDate" type="date" value="${todayISO()}"/></div>
+      <div class="field"><label>Method</label><select class="control" id="pType"><option value="cash">Cash</option><option value="upi">UPI</option><option value="bank">Bank</option><option value="other">Other</option></select></div>
+    </div>
+    <div class="field"><label>Note (optional)</label><input class="control" id="pNote" type="text" placeholder="e.g. in hand"/></div>
+    <div class="actions2"><button class="btn ghost" onclick="closeModal()">Cancel</button><button class="btn" id="pBtn" onclick="savePayment()">✓ Save payment</button></div>`;
+  showModal();
+}
+function onPayTenantChange(){
+  const id=document.getElementById("pTenant").value;const t=tenantById(id);
+  document.getElementById("pAmount").value=t?Math.round(t.monthly_rent)||"":"";
+  const opts=monthOptions(t);const def=(t&&t.pending_months&&t.pending_months[0])||curMonth();
+  document.getElementById("pMonth").innerHTML=opts.map(mn=>`<option value="${mn}" ${mn===def?"selected":""}>${monthLabel(mn)}</option>`).join("");
+}
+async function savePayment(){
+  const id=document.getElementById("pTenant").value,t=tenantById(id);
+  const amount=document.getElementById("pAmount").value.trim();
+  const for_month=document.getElementById("pMonth").value;
+  const date_paid=document.getElementById("pDate").value;
+  const payment_type=document.getElementById("pType").value;
+  const notes=document.getElementById("pNote").value.trim();
+  const btn=document.getElementById("pBtn");
+  if(!amount||Number(amount)<=0){toast("Enter a valid amount","err");return;}
+  if(!date_paid){toast("Pick the paid date","err");return;}
+  btn.disabled=true;btn.innerHTML='<span class="spinner"></span> Saving…';
+  try{
+    await api("/api/entries",{method:"POST",body:JSON.stringify({
+      tenant_id:id,tenant_name:t?t.tenant_name:"",amount,for_month,date_paid,payment_type,notes})});
+    closeModal();toast(`${t?t.tenant_name:"Payment"}: ${money(amount)} for ${monthLabel(for_month)}`,"ok");
+    await loadAll();
+  }catch(e){btn.disabled=false;btn.innerHTML="✓ Save payment";toast("Failed: "+e.message,"err");}
+}
+
+/* ---------- ADD / EDIT TENANT ---------- */
+function openTenantForm(id){
+  const t=id?tenantById(id):null;const editing=!!t;
+  const m=document.getElementById("modal");
+  m.innerHTML=`<div class="grip"></div><h3>${editing?"Edit tenant":"Add tenant"}</h3>
+    <p class="msub">${editing?esc(t.tenant_id):"Saved to the Tenants tab."}</p>
+    <div class="field"><label>Name</label><input class="control" id="fName" type="text" value="${editing?esc(t.tenant_name):""}" placeholder="Tenant name"/></div>
+    <div class="row2">
+      <div class="field"><label>Monthly rent</label><div class="amt-wrap"><span class="rs">₹</span><input class="control" id="fRent" type="number" inputmode="numeric" value="${editing?Math.round(t.monthly_rent)||"":""}"/></div></div>
+      <div class="field"><label>Advance</label><div class="amt-wrap"><span class="rs">₹</span><input class="control" id="fAdv" type="number" inputmode="numeric" value="${editing?Math.round(t.advance)||"":""}"/></div></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label>Date joined</label><input class="control" id="fJoin" type="date" value="${editing&&t.date_joined&&t.date_joined.length>=10?esc(t.date_joined.slice(0,10)):""}"/></div>
+      <div class="field"><label>Phone</label><input class="control" id="fPhone" type="tel" value="${editing?esc(t.phone):""}"/></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label>Room / unit</label><input class="control" id="fRoom" type="text" value="${editing?esc(t.room):""}"/></div>
+      <div class="field"><label>Status</label><select class="control" id="fStatus"><option value="active" ${editing&&!isActive(t)?"":"selected"}>Active</option><option value="left" ${editing&&!isActive(t)?"selected":""}>Left</option></select></div>
+    </div>
+    ${editing?"":`<div class="field"><label>Tenant ID (optional)</label><input class="control" id="fId" type="text" placeholder="auto (e.g. b11)"/></div>`}
+    <div class="actions2"><button class="btn ghost" onclick="${editing?`openTenant('${esc(t.tenant_id)}')`:'closeModal()'}">Cancel</button>
+      <button class="btn" id="fBtn" onclick="saveTenant(${editing?`'${esc(t.tenant_id)}'`:"null"})">✓ Save</button></div>`;
+  showModal();setTimeout(()=>{const n=document.getElementById("fName");n&&n.focus();},250);
+}
+async function saveTenant(id){
+  const editing=!!id;
+  const body={
+    tenant_name:document.getElementById("fName").value.trim(),
+    monthly_rent:document.getElementById("fRent").value.trim(),
+    advance:document.getElementById("fAdv").value.trim(),
+    date_joined:document.getElementById("fJoin").value,
+    phone:document.getElementById("fPhone").value.trim(),
+    room:document.getElementById("fRoom").value.trim(),
+    status:document.getElementById("fStatus").value,
+  };
+  if(!editing){const idf=document.getElementById("fId");if(idf&&idf.value.trim())body.tenant_id=idf.value.trim();}
+  if(!body.tenant_name){toast("Enter a name","err");return;}
+  const btn=document.getElementById("fBtn");btn.disabled=true;btn.innerHTML='<span class="spinner"></span> Saving…';
+  try{
+    if(editing)await api("/api/tenants/"+encodeURIComponent(id),{method:"PUT",body:JSON.stringify(body)});
+    else await api("/api/tenants",{method:"POST",body:JSON.stringify(body)});
+    closeModal();toast(editing?"Tenant updated":"Tenant added","ok");await loadAll();
+  }catch(e){btn.disabled=false;btn.innerHTML="✓ Save";toast("Failed: "+e.message,"err");}
+}
+function confirmDeleteTenant(id){
+  const t=tenantById(id);if(!t)return;
+  const m=document.getElementById("modal");
+  m.innerHTML=`<div class="grip"></div><h3>Remove tenant?</h3>
+    <p class="msub">This deletes <b>${esc(t.tenant_name||t.tenant_id)}</b> from the Tenants tab. Their past payment entries are kept.</p>
+    <div class="actions2"><button class="btn ghost" onclick="openTenant('${esc(id)}')">Cancel</button>
+      <button class="btn danger" id="dBtn" onclick="doDeleteTenant('${esc(id)}')">🗑 Remove</button></div>`;
+  showModal();
+}
+async function doDeleteTenant(id){
+  const btn=document.getElementById("dBtn");btn.disabled=true;btn.innerHTML='<span class="spinner"></span> Removing…';
+  try{await api("/api/tenants/"+encodeURIComponent(id),{method:"DELETE"});closeModal();toast("Tenant removed","ok");await loadAll();}
+  catch(e){btn.disabled=false;btn.innerHTML="🗑 Remove";toast("Failed: "+e.message,"err");}
+}
+async function deleteEntry(eid,tid){
+  if(!confirm("Delete this payment entry?"))return;
+  try{await api("/api/entries/"+encodeURIComponent(eid),{method:"DELETE"});toast("Entry deleted","ok");
+    await loadAll();openTenant(tid);}
+  catch(e){toast("Failed: "+e.message,"err");}
+}
+
+/* ---------- FAB ---------- */
+function onFab(){
+  if(activeTab==="tenants")openTenantForm();
+  else openPay();
+}
+function setFab(){document.getElementById("fabLabel").textContent=activeTab==="tenants"?"Add Tenant":"Record Payment";}
+
+/* ---------- tabs / modal / settings / toast ---------- */
+function switchTab(t){activeTab=t;
+  ["home","tenants","pay"].forEach(x=>{document.getElementById("tab-"+x).classList.toggle("active",x===t);
+    document.getElementById("view-"+x).classList.toggle("active",x===t);});
+  setFab();}
+function showModal(){document.getElementById("modalBg").classList.add("show");}
+function closeModal(){document.getElementById("modalBg").classList.remove("show");}
+function openSettings(){const k=API_KEY||"";document.getElementById("keyMask").textContent=k.length>4?"••••••••"+k.slice(-4):"••••";
+  if(IS_APP){document.getElementById("serverRow").style.display="block";document.getElementById("serverInfo").textContent=API_BASE||"—";}
+  document.getElementById("settingsBg").classList.add("show");}
+function closeSettings(){document.getElementById("settingsBg").classList.remove("show");}
+function toast(msg,type){const wrap=document.getElementById("toastWrap");
+  const modalOpen=document.querySelector(".modal-bg.show");
+  wrap.style.bottom=modalOpen?"auto":"20px";wrap.style.top=modalOpen?"20px":"auto";
+  const t=document.createElement("div");t.className="toast "+(type||"");
+  t.innerHTML=(type==="ok"?"✓ ":type==="err"?"✕ ":"")+esc(msg);wrap.appendChild(t);
+  setTimeout(()=>{t.style.opacity="0";t.style.transition=".3s";setTimeout(()=>t.remove(),300);},2600);}
+
+/* ---------- boot ---------- */
+(async function init(){
+  if(IS_APP){const ui=document.getElementById("urlInput");ui.style.display="block";ui.value=API_BASE||"";}
+  setFab();
+  if(API_KEY&&(!IS_APP||API_BASE)){
+    try{await api("/api/verify");
+      document.getElementById("lockScreen").style.display="none";
+      document.getElementById("app").style.display="flex";await loadAll();
+    }catch(e){if(e.status===401)localStorage.removeItem(KEY_STORAGE);document.getElementById("lockScreen").style.display="flex";}
+  }else document.getElementById("lockScreen").style.display="flex";
 })();
 </script>
 </body>
