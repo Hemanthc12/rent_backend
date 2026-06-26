@@ -1,8 +1,9 @@
 # backend/app.py
 import os
 import json
+import re
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 import gspread
@@ -167,12 +168,40 @@ def to_num(v):
 def is_blank(v):
     return v is None or str(v).strip() == ""
 
+IST = timezone(timedelta(hours=5, minutes=30))  # India Standard Time
+
+def now_ist():
+    return datetime.now(IST)
+
 def now_synced():
-    return datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+    return now_ist().strftime("%d/%m/%Y %H:%M:%S")
 
 def current_month():
-    n = datetime.now()
+    n = now_ist()
     return "%04d-%02d" % (n.year, n.month)
+
+def parse_join(raw):
+    """Return (YYYY-MM, billing day-of-month) from a join date.
+    Day defaults to 1 when only a month is known."""
+    s = str(raw or "").strip()
+    m = re.match(r"^(\d{4})-(\d{1,2})-(\d{1,2})", s)
+    if m:
+        return "%04d-%02d" % (int(m.group(1)), int(m.group(2))), max(1, int(m.group(3)))
+    m = re.match(r"^(\d{4})-(\d{1,2})", s)
+    if m:
+        return "%04d-%02d" % (int(m.group(1)), int(m.group(2))), 1
+    return None, 1
+
+def latest_owed_month(join_day):
+    """The most recent month whose billing period (anchored on join_day) has
+    fully elapsed as of today (IST). The currently-running period is NOT owed."""
+    t = now_ist()
+    if t.day >= join_day:
+        ry, rm = t.year, t.month            # this month's period is the running one
+    else:
+        ry, rm = (t.year - 1, 12) if t.month == 1 else (t.year, t.month - 1)
+    oy, om = (ry - 1, 12) if rm == 1 else (ry, rm - 1)   # month before the running one
+    return "%04d-%02d" % (oy, om)
 
 def norm_month(s):
     """Normalize a date/month string to YYYY-MM."""
@@ -257,15 +286,16 @@ def build_state():
             if dp > last_date:
                 last_date = dp
 
-        # join month: explicit date_joined, else earliest paid month, else this month
-        if joined:
-            join_m = norm_month(joined)
-        elif paid_months:
-            join_m = min(paid_months.keys())
-        else:
-            join_m = cmonth
+        # join month + billing day from date_joined (falls back to first payment)
+        join_m, join_day = parse_join(joined)
+        if not join_m:
+            join_m = min(paid_months.keys()) if paid_months else cmonth
+            join_day = 1
 
-        expected = months_between(join_m, cmonth)
+        # Only count months whose billing period (join_day -> join_day) has fully
+        # elapsed. The currently-running month is not due yet.
+        owed_end = latest_owed_month(join_day)
+        expected = months_between(join_m, owed_end)   # [] when nothing is due yet
         pending_months = [m for m in expected if m not in paid_months]
         pending_amt = len(pending_months) * rent
 
