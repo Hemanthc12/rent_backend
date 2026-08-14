@@ -1,4 +1,3 @@
-# backend/app.py
 import os
 import json
 import re
@@ -201,15 +200,25 @@ def parse_join(raw):
     return None, 1
 
 def latest_owed_month(join_day):
-    """The most recent month whose billing period (anchored on join_day) has
-    fully elapsed as of today (IST). The currently-running period is NOT owed."""
+    """Return the latest rent month whose billing period is fully complete.
+
+    Rent periods are anchored to the tenant's join day. A period ending on
+    the tenant's anniversary date is considered payable only AFTER that date.
+    Example: joined on July 18 -> July rent becomes due after Aug 18.
+    """
     t = now_ist()
-    if t.day >= join_day:
-        ry, rm = t.year, t.month            # this month's period is the running one
+    if t.day > join_day:
+        # The previous calendar month's period ended on this month's
+        # anniversary day, so it is now completed.
+        y, m = t.year, t.month - 1
     else:
-        ry, rm = (t.year - 1, 12) if t.month == 1 else (t.year, t.month - 1)
-    oy, om = (ry - 1, 12) if rm == 1 else (ry, rm - 1)   # month before the running one
-    return "%04d-%02d" % (oy, om)
+        # The previous calendar month's period is still running until the
+        # anniversary day in the current month.
+        y, m = t.year, t.month - 2
+    while m <= 0:
+        y -= 1
+        m += 12
+    return "%04d-%02d" % (y, m)
 
 def norm_month(s):
     """Normalize a date/month string to YYYY-MM."""
@@ -304,19 +313,20 @@ def build_state():
             if dp > last_date:
                 last_date = dp
 
-        # Pending is for LAST MONTH only (not the running month and not
-        # an accumulated balance from older months).
-        # An active tenant is due for last month only if they had already joined
-        # by that month.
+        # Pending is for LAST MONTH only. However, last month's rent is
+        # payable only after that tenant's billing period has completed.
+        # Example: joined Jul 18 -> Jul rent runs Jul 18-Aug 17 and must NOT
+        # be marked pending on Aug 14. It becomes pending after Aug 18.
         join_m, join_day = parse_join(joined)
         if not join_m:
             join_m = min(paid_months.keys()) if paid_months else cmonth
             join_day = 1
 
-        eligible_for_last_month = join_m <= last_month
+        today = now_ist()
+        last_period_completed = (join_m <= last_month and today.day > join_day)
         paid_last_month = paid_months.get(last_month, 0.0)
 
-        if active and eligible_for_last_month:
+        if active and last_period_completed:
             pending_amt = max(rent - paid_last_month, 0.0)
             pending_months = [last_month] if pending_amt > 0 else []
         else:
