@@ -313,9 +313,9 @@ function renderHome(){
   const pend=STATE.tenants.filter(t=>t.pending_amount>0).sort((a,b)=>b.pending_amount-a.pending_amount);
   let html=`
     <div class="stats">
-      <div class="stat amber"><div class="val">${money(s.total_pending)}</div><div class="lbl">Total pending</div></div>
-      <div class="stat green"><div class="val">${money(s.collected_this_month)}</div><div class="lbl">Collected (${monthLabel(s.current_month)})</div></div>
-      <div class="stat blue"><div class="val">${money(s.total_monthly_rent)}</div><div class="lbl">Monthly rent</div></div>
+      <div class="stat amber"><div class="val">${money(s.total_pending)}</div><div class="lbl">Total pending (${monthLabel(s.last_month)})</div></div>
+      <div class="stat green"><div class="val">${money(s.collected_last_month)}</div><div class="lbl">Collected (${monthLabel(s.last_month)})</div></div>
+      <div class="stat blue"><div class="val">${money(s.total_monthly_rent)}</div><div class="lbl">Monthly rent (Active)</div></div>
       <div class="stat"><div class="val">${s.tenant_count}</div><div class="lbl">Tenants</div></div>
     </div>`;
   html+=`<div class="section-title">Needs attention ${pend.length?`<span class="link-btn" onclick="switchTab('tenants')">All tenants ›</span>`:""}</div>`;
@@ -333,7 +333,9 @@ function tenantRow(t,showPay){
   const pill=!isActive(t)?`<span class="pill off">Left</span>`
     :due?`<span class="pill due">${money(t.pending_amount)}</span>`
     :`<span class="pill ok">✓ Paid</span>`;
-  const sub=due?`${t.pending_months.length} month${t.pending_months.length>1?"s":""} due • ${money(t.monthly_rent)}/mo`
+  const sub=!isActive(t)
+    ?`Inactive${t.last_payment?" • last "+monthLabelFromDate(t.last_payment):""}`
+    :due?`${t.pending_months.length} month${t.pending_months.length>1?"s":""} due • ${money(t.monthly_rent)}/mo`
     :`${money(t.monthly_rent)}/mo • last ${t.last_payment?monthLabelFromDate(t.last_payment):"—"}`;
   return `<div class="trow" onclick="openTenant('${esc(t.tenant_id)}')">
     <div class="avatar" style="background:${colorFor(t.tenant_id)}">${esc(initials(t.tenant_name))}</div>
@@ -383,8 +385,8 @@ async function openTenant(id){
     <div class="dh"><div class="avatar" style="background:${colorFor(t.tenant_id)}">${esc(initials(t.tenant_name))}</div>
       <div><h3>${esc(t.tenant_name||t.tenant_id)}</h3><p>${esc(t.tenant_id)}${t.room?" • Room "+esc(t.room):""}${t.phone?" • "+esc(t.phone):""}</p></div></div>
     <div class="kv">
-      <div class="box"><div class="k">Monthly rent</div><div class="v">${money(t.monthly_rent)}</div></div>
-      <div class="box"><div class="k">Pending</div><div class="v ${t.pending_amount>0?'amber':'green'}">${t.pending_amount>0?money(t.pending_amount):"Clear"}</div></div>
+      ${isActive(t)?`<div class="box"><div class="k">Monthly rent</div><div class="v">${money(t.monthly_rent)}</div></div>`:""}
+      <div class="box"><div class="k">Pending (${monthLabel(STATE.last_month)})</div><div class="v ${t.pending_amount>0?'amber':'green'}">${t.pending_amount>0?money(t.pending_amount):"Clear"}</div></div>
       <div class="box"><div class="k">Advance</div><div class="v">${money(t.advance)}</div></div>
       <div class="box"><div class="k">Joined</div><div class="v" style="font-size:14px">${esc(monthLabelFromDate(t.date_joined))}</div></div>
     </div>

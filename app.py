@@ -180,6 +180,14 @@ def current_month():
     n = now_ist()
     return "%04d-%02d" % (n.year, n.month)
 
+
+def previous_month():
+    """Return the previous calendar month as YYYY-MM (IST)."""
+    n = now_ist()
+    if n.month == 1:
+        return "%04d-12" % (n.year - 1)
+    return "%04d-%02d" % (n.year, n.month - 1)
+
 def parse_join(raw):
     """Return (YYYY-MM, billing day-of-month) from a join date.
     Day defaults to 1 when only a month is known."""
@@ -243,7 +251,9 @@ def build_state():
     theaders = tws.row_values(1)
     trecords = tws.get_all_records()
     entries = get_tab(sh, ENTRIES_WS).get_all_records()
+
     cmonth = current_month()
+    last_month = previous_month()
 
     # group entries by tenant_id
     by_tenant = {}
@@ -254,13 +264,16 @@ def build_state():
         by_tenant.setdefault(tid, []).append(e)
 
     tenants = []
-    sum_rent = sum_adv = sum_pending = collected_month = collected_total = 0.0
+    sum_rent = sum_adv = sum_pending = collected_last_month = collected_total = 0.0
     pending_tenants = 0
+
+    inactive_statuses = ("inactive", "left", "moved", "moved out", "no")
 
     for r in trecords:
         tid = str(get_val(r, theaders, TENANT_ID)).strip()
         if not tid:
             continue
+
         name = str(get_val(r, theaders, TENANT_NAME)).strip()
         rent = to_num(get_val(r, theaders, TENANT_RENT))
         advance = to_num(get_val(r, theaders, TENANT_ADVANCE))
@@ -268,45 +281,55 @@ def build_state():
         phone = str(get_val(r, theaders, TENANT_PHONE)).strip()
         room = str(get_val(r, theaders, TENANT_ROOM)).strip()
         status = str(get_val(r, theaders, TENANT_STATUS)).strip() or "active"
+        active = status.lower() not in inactive_statuses
 
         te = by_tenant.get(tid, [])
         paid_months = {}
         total_paid = 0.0
         last_date = ""
+
         for e in te:
             amt = to_num(e.get("amount"))
             total_paid += amt
             collected_total += amt
+
             fm = norm_month(e.get("for_month"))
             if fm:
                 paid_months[fm] = paid_months.get(fm, 0.0) + amt
-            if fm == cmonth:
-                collected_month += amt
+
+            if fm == last_month:
+                collected_last_month += amt
+
             dp = str(e.get("date_paid", "")).strip()
             if dp > last_date:
                 last_date = dp
 
-        # join month + billing day from date_joined (falls back to first payment)
+        # Pending is for LAST MONTH only (not the running month and not
+        # an accumulated balance from older months).
+        # An active tenant is due for last month only if they had already joined
+        # by that month.
         join_m, join_day = parse_join(joined)
         if not join_m:
             join_m = min(paid_months.keys()) if paid_months else cmonth
             join_day = 1
 
-        # Only count months whose billing period (join_day -> join_day) has fully
-        # elapsed. The currently-running month is not due yet.
-        owed_end = latest_owed_month(join_day)
-        expected = months_between(join_m, owed_end)   # [] when nothing is due yet
-        pending_months = [m for m in expected if m not in paid_months]
-        pending_amt = len(pending_months) * rent
+        eligible_for_last_month = join_m <= last_month
+        paid_last_month = paid_months.get(last_month, 0.0)
 
-        if status.lower() in ("inactive", "left", "moved", "moved out", "no"):
-            pending_amt = 0
+        if active and eligible_for_last_month:
+            pending_amt = max(rent - paid_last_month, 0.0)
+            pending_months = [last_month] if pending_amt > 0 else []
+        else:
+            pending_amt = 0.0
             pending_months = []
 
         if pending_amt > 0:
             pending_tenants += 1
 
-        sum_rent += rent
+        # Monthly rent summary is ONLY for active tenants.
+        if active:
+            sum_rent += rent
+
         sum_adv += advance
         sum_pending += pending_amt
 
@@ -325,6 +348,7 @@ def build_state():
             "pending_months": pending_months,
             "last_payment": last_date,
             "paid_this_month": cmonth in paid_months,
+            "paid_last_month": last_month in paid_months,
         })
 
     summary = {
@@ -333,12 +357,20 @@ def build_state():
         "total_advance": sum_adv,
         "total_pending": sum_pending,
         "pending_tenants": pending_tenants,
-        "collected_this_month": collected_month,
+        "collected_last_month": collected_last_month,
         "collected_total": collected_total,
         "current_month": cmonth,
+        "last_month": last_month,
         "currency": CURRENCY,
     }
-    return {"tenants": tenants, "summary": summary, "current_month": cmonth, "currency": CURRENCY}
+
+    return {
+        "tenants": tenants,
+        "summary": summary,
+        "current_month": cmonth,
+        "last_month": last_month,
+        "currency": CURRENCY,
+    }
 
 # -----------------------
 # Auth
