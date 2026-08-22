@@ -251,6 +251,7 @@ const IS_APP=location.protocol==="capacitor:"||location.protocol==="file:"||
 let STATE=null;            // {tenants, summary, current_month, currency}
 let activeTab="home";
 let tenantFilter="active";
+let detailReturnTab="tenants";
 const MONTHS=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const COLORS=["#0ea5e9","#8b5cf6","#f59e0b","#ef4444","#10b981","#6366f1","#ec4899","#14b8a6"];
 
@@ -275,6 +276,44 @@ function initials(name){name=(name||"?").trim();const p=name.split(/[\s_]+/).fil
 function colorFor(id){let h=0;id=String(id);for(let i=0;i<id.length;i++)h=(h*31+id.charCodeAt(i))>>>0;return COLORS[h%COLORS.length];}
 function tenantById(id){return (STATE&&STATE.tenants||[]).find(t=>t.tenant_id===id);}
 function isActive(t){return !(String(t.status||"").toLowerCase() in {inactive:1,left:1,moved:1,no:1});}
+
+function num(v){
+  const n=Number(v);
+  return Number.isFinite(n)?n:0;
+}
+
+function getActiveTenantCount(){
+  return (STATE&&Array.isArray(STATE.tenants)?STATE.tenants:[]).filter(isActive).length;
+}
+
+function getCollectedLastMonth(){
+  const s=STATE&&STATE.summary?STATE.summary:{};
+  return num(
+    s.collected_last_month ??
+    s.collected ??
+    s.total_collected ??
+    s.total_collected_last_month ??
+    0
+  );
+}
+
+function getExpectedLastMonth(){
+  const s=STATE&&STATE.summary?STATE.summary:{};
+  return num(
+    s.expected_last_month ??
+    s.expected ??
+    s.total_expected ??
+    s.total_expected_last_month ??
+    0
+  );
+}
+
+function getCollectionRate(){
+  const collected=getCollectedLastMonth();
+  const expected=getExpectedLastMonth();
+  if(expected<=0)return 0;
+  return Math.max(0,Math.min(100,(collected/expected)*100));
+}
 
 /* recent + pending months for a tenant (for the payment dropdown) */
 function monthOptions(t){
@@ -323,28 +362,66 @@ async function loadAll(refresh){
 }
 function errState(msg){return `<div class="center-state"><div class="big">⚠️</div><p><b>Couldn't load data</b></p>
   <p>${esc(msg)}</p><button class="btn ghost" style="max-width:220px;margin:14px auto 0" onclick="loadAll(true)">Try again</button></div>`;}
-function updateTopSub(){const s=STATE.summary;document.getElementById("topSub").textContent=
-  s.pending_tenants>0?(s.pending_tenants+" tenant"+(s.pending_tenants>1?"s":"")+" with dues"):"All rent collected 🎉";}
+function updateTopSub(){
+  const s=STATE.summary||{};
+  const pendingTenants=num(s.pending_tenants);
+  document.getElementById("topSub").textContent=
+    pendingTenants>0
+      ?(pendingTenants+" tenant"+(pendingTenants>1?"s":"")+" with dues")
+      :"All rent collected 🎉";
+}
 
 /* ---------- HOME ---------- */
 function renderHome(){
-  const s=STATE.summary;
-  const pend=STATE.tenants.filter(t=>t.pending_amount>0).sort((a,b)=>b.pending_amount-a.pending_amount);
-  const rate=Math.max(0,Math.min(100,Number(s.collection_rate)||0));
-  const dueLabel=pend.length?`${pend.length} tenant${pend.length===1?"":"s"} need attention`:`No overdue rent for ${monthLabel(s.last_month)}`;
+  const s=STATE.summary||{};
+
+  const pend=(STATE.tenants||[])
+    .filter(t=>num(t.pending_amount)>0)
+    .sort((a,b)=>num(b.pending_amount)-num(a.pending_amount));
+
+  const collectedLastMonth=getCollectedLastMonth();
+  const expectedLastMonth=getExpectedLastMonth();
+  const rate=getCollectionRate();
+
+  const activeTenantCount=
+    Number.isFinite(Number(s.active_tenant_count))
+      ?Number(s.active_tenant_count)
+      :getActiveTenantCount();
+
+  const pendingTenantCount=
+    Number.isFinite(Number(s.pending_tenants))
+      ?Number(s.pending_tenants)
+      :pend.length;
+
+  const totalPending=
+    Number.isFinite(Number(s.total_pending))
+      ?num(s.total_pending)
+      :pend.reduce((sum,t)=>sum+num(t.pending_amount),0);
+
+  const totalMonthlyRent=
+    Number.isFinite(Number(s.total_monthly_rent))
+      ?num(s.total_monthly_rent)
+      :(STATE.tenants||[])
+        .filter(isActive)
+        .reduce((sum,t)=>sum+num(t.monthly_rent),0);
+
+  const dueLabel=pend.length
+    ?`${pend.length} tenant${pend.length===1?"":"s"} need attention`
+    :`No overdue rent for ${monthLabel(s.last_month)}`;
+
   let html=`
     <div class="hero">
       <div class="eyebrow">Previous month • ${monthLabel(s.last_month)}</div>
-      <div class="big-money">${money(s.collected_last_month)}</div>
-      <div class="muted">Collected from ${money(s.expected_last_month)} expected</div>
+      <div class="big-money">${money(collectedLastMonth)}</div>
+      <div class="muted">Collected ${money(collectedLastMonth)} from ${money(expectedLastMonth)} expected</div>
       <div class="progress"><i style="width:${rate.toFixed(0)}%"></i></div>
       <div class="muted" style="margin-top:7px">${rate.toFixed(0)}% collection rate</div>
     </div>
     <div class="stats">
-      <div class="stat amber"><div class="val">${money(s.total_pending)}</div><div class="lbl">Pending (${monthLabel(s.last_month)})</div></div>
-      <div class="stat blue"><div class="val">${money(s.total_monthly_rent)}</div><div class="lbl">Monthly rent</div></div>
-      <div class="stat"><div class="val">${s.active_tenant_count}</div><div class="lbl">Active tenants</div></div>
-      <div class="stat green"><div class="val">${s.pending_tenants}</div><div class="lbl">With pending rent</div></div>
+      <div class="stat amber"><div class="val">${money(totalPending)}</div><div class="lbl">Pending (${monthLabel(s.last_month)})</div></div>
+      <div class="stat blue"><div class="val">${money(totalMonthlyRent)}</div><div class="lbl">Monthly rent</div></div>
+      <div class="stat"><div class="val">${activeTenantCount}</div><div class="lbl">Active tenants</div></div>
+      <div class="stat green"><div class="val">${pendingTenantCount}</div><div class="lbl">With pending rent</div></div>
     </div>
     <div class="quick-grid" style="margin-top:12px">
       <button class="quick" onclick="openPay()"><b>＋ Record payment</b><span>Add a rent collection</span></button>
@@ -361,14 +438,21 @@ function renderHome(){
 
 /* one tenant row (used in Home + Tenants) */
 function tenantRow(t,showPay){
-  const due=t.pending_amount>0;
-  const pill=!isActive(t)?`<span class="pill off">Left</span>`
-    :due?`<span class="pill due">${money(t.pending_amount)}</span>`
-    :`<span class="pill ok">✓ Paid</span>`;
+  const pendingMonths=Array.isArray(t.pending_months)?t.pending_months:[];
+  const due=num(t.pending_amount)>0;
+
+  const pill=!isActive(t)
+    ?`<span class="pill off">Left</span>`
+    :due
+      ?`<span class="pill due">${money(t.pending_amount)}</span>`
+      :`<span class="pill ok">✓ Paid</span>`;
+
   const sub=!isActive(t)
     ?`Inactive${t.last_payment?" • last "+monthLabelFromDate(t.last_payment):""}`
-    :due?`${t.pending_months.length} month${t.pending_months.length>1?"s":""} due • ${money(t.monthly_rent)}/mo`
-    :`${money(t.monthly_rent)}/mo • last ${t.last_payment?monthLabelFromDate(t.last_payment):"—"}`;
+    :due
+      ?`${pendingMonths.length} month${pendingMonths.length>1?"s":""} due • ${money(t.monthly_rent)}/mo`
+      :`${money(t.monthly_rent)}/mo • last ${t.last_payment?monthLabelFromDate(t.last_payment):"—"}`;
+
   return `<div class="trow" onclick="openTenant('${esc(t.tenant_id)}')">
     <div class="avatar" style="background:${colorFor(t.tenant_id)}">${esc(initials(t.tenant_name))}</div>
     <div class="tmeta"><div class="tname">${esc(t.tenant_name||t.tenant_id)}</div><div class="tsub">${esc(sub)}</div></div>
@@ -387,8 +471,8 @@ function renderTenants(){
   const q=(document.getElementById("tsearch").value||"").toLowerCase().trim();
   let list=STATE.tenants.slice();
   if(tenantFilter==="active")list=list.filter(isActive);
-  if(tenantFilter==="pending")list=list.filter(t=>isActive(t)&&t.pending_amount>0);
-  list.sort((a,b)=>{if((b.pending_amount>0)!==(a.pending_amount>0))return (b.pending_amount>0)-(a.pending_amount>0);return (a.tenant_name||"").localeCompare(b.tenant_name||"");});
+  if(tenantFilter==="pending")list=list.filter(t=>isActive(t)&&num(t.pending_amount)>0);
+  list.sort((a,b)=>{if((num(b.pending_amount)>0)!==(num(a.pending_amount)>0))return (num(b.pending_amount)>0)-(num(a.pending_amount)>0);return (a.tenant_name||"").localeCompare(b.tenant_name||"");});
   if(q)list=list.filter(t=>(t.tenant_name||"").toLowerCase().includes(q)||(t.tenant_id||"").toLowerCase().includes(q));
   const el=document.getElementById("tenantList");
   if(!list.length){el.innerHTML=`<div class="center-state"><div class="big">👥</div><p>No tenants found</p></div>`;return;}
@@ -459,8 +543,10 @@ async function renderActivity(){
 /* ---------- TENANT DETAIL ---------- */
 async function openTenant(id){
   const t=tenantById(id); if(!t)return;
+  detailReturnTab=activeTab;
   const m=document.getElementById("modal");
   m.innerHTML=`<div class="grip"></div>
+    <button class="btn ghost sm" onclick="backFromTenant()" style="width:auto;margin:0 0 14px;padding:8px 13px">← Back</button>
     <div class="dh"><div class="avatar" style="background:${colorFor(t.tenant_id)}">${esc(initials(t.tenant_name))}</div>
       <div><h3>${esc(t.tenant_name||t.tenant_id)}</h3><p>${esc(t.tenant_id)}${t.room?" • Room "+esc(t.room):""}${t.phone?" • "+esc(t.phone):""}</p></div></div>
     <div class="kv">
@@ -614,6 +700,13 @@ function switchTab(t){activeTab=t;
   ["home","tenants","pay","activity"].forEach(x=>{document.getElementById("tab-"+x).classList.toggle("active",x===t);
     document.getElementById("view-"+x).classList.toggle("active",x===t);});
   setFab();}
+function backFromTenant(){
+  closeModal();
+  const tab=detailReturnTab||"tenants";
+  switchTab(tab);
+  if(tab==="tenants")setTenantFilter(tenantFilter);
+}
+
 function showModal(){document.getElementById("modalBg").classList.add("show");}
 function closeModal(){document.getElementById("modalBg").classList.remove("show");}
 function openSettings(){const k=API_KEY||"";document.getElementById("keyMask").textContent=k.length>4?"••••••••"+k.slice(-4):"••••";
