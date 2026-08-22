@@ -283,7 +283,15 @@ function num(v){
 }
 
 function getActiveTenantCount(){
-  return (STATE&&Array.isArray(STATE.tenants)?STATE.tenants:[]).filter(isActive).length;
+  const tenants=STATE&&Array.isArray(STATE.tenants)?STATE.tenants:[];
+  const ids=new Set();
+  tenants.forEach(t=>{
+    if(isActive(t)){
+      const id=String(t.tenant_id||"").trim();
+      if(id)ids.add(id);
+    }
+  });
+  return ids.size;
 }
 
 function getCollectedLastMonth(){
@@ -299,13 +307,21 @@ function getCollectedLastMonth(){
 
 function getExpectedLastMonth(){
   const s=STATE&&STATE.summary?STATE.summary:{};
-  return num(
+  const direct=num(
     s.expected_last_month ??
     s.expected ??
     s.total_expected ??
     s.total_expected_last_month ??
     0
   );
+
+  // If the API does not provide the previous month's expected amount,
+  // use collected + outstanding for that same month.
+  if(direct>0)return direct;
+
+  const collected=getCollectedLastMonth();
+  const pending=num(s.total_pending);
+  return collected+pending;
 }
 
 function getCollectionRate(){
@@ -313,6 +329,48 @@ function getCollectionRate(){
   const expected=getExpectedLastMonth();
   if(expected<=0)return 0;
   return Math.max(0,Math.min(100,(collected/expected)*100));
+}
+
+function getRoomData(){
+  const tenants=Array.isArray(STATE?.tenants)?STATE.tenants:[];
+
+  const rooms=tenants
+    .map(t=>String(t.tenant_id||"").trim())
+    .filter(Boolean);
+
+  const uniqueRooms=[...new Set(rooms)];
+
+  const occupied=tenants.filter(t=>isActive(t)&&String(t.tenant_id||"").trim());
+
+  const empty=tenants.filter(t=>{
+    const id=String(t.tenant_id||"").trim();
+    return id && (!isActive(t) || !String(t.tenant_name||"").trim());
+  });
+
+  return {
+    total:uniqueRooms.length,
+    occupied:occupied.length,
+    empty:empty.length,
+    emptyRooms:empty.map(t=>String(t.tenant_id||"").trim()).filter(Boolean)
+  };
+}
+
+function getSeriesIncome(){
+  const tenants=Array.isArray(STATE?.tenants)?STATE.tenants:[];
+  const result={KA:0,KB:0,GA:0,OTHER:0};
+
+  tenants.filter(isActive).forEach(t=>{
+    const id=String(t.tenant_id||"").trim().toUpperCase();
+    const rent=num(t.monthly_rent);
+
+    if(id.startsWith("KA"))result.KA+=rent;
+    else if(id.startsWith("KB"))result.KB+=rent;
+    else if(id.startsWith("GA"))result.GA+=rent;
+    else result.OTHER+=rent;
+  });
+
+  result.TOTAL=result.KA+result.KB+result.GA+result.OTHER;
+  return result;
 }
 
 /* recent + pending months for a tenant (for the payment dropdown) */
@@ -383,27 +441,18 @@ function renderHome(){
   const expectedLastMonth=getExpectedLastMonth();
   const rate=getCollectionRate();
 
-  const activeTenantCount=
-    Number.isFinite(Number(s.active_tenant_count))
-      ?Number(s.active_tenant_count)
-      :getActiveTenantCount();
+  // Always calculate active tenants from status when possible.
+  const activeTenantCount=getActiveTenantCount();
+  const pendingTenantCount=pend.filter(t=>isActive(t)).length;
 
-  const pendingTenantCount=
-    Number.isFinite(Number(s.pending_tenants))
-      ?Number(s.pending_tenants)
-      :pend.length;
+  const roomData=getRoomData();
+  const series=getSeriesIncome();
 
-  const totalPending=
-    Number.isFinite(Number(s.total_pending))
-      ?num(s.total_pending)
-      :pend.reduce((sum,t)=>sum+num(t.pending_amount),0);
+  const totalPending=pend.reduce(
+    (sum,t)=>sum+num(t.pending_amount),0
+  );
 
-  const totalMonthlyRent=
-    Number.isFinite(Number(s.total_monthly_rent))
-      ?num(s.total_monthly_rent)
-      :(STATE.tenants||[])
-        .filter(isActive)
-        .reduce((sum,t)=>sum+num(t.monthly_rent),0);
+  const totalMonthlyRent=series.TOTAL;
 
   const dueLabel=pend.length
     ?`${pend.length} tenant${pend.length===1?"":"s"} need attention`
@@ -417,22 +466,114 @@ function renderHome(){
       <div class="progress"><i style="width:${rate.toFixed(0)}%"></i></div>
       <div class="muted" style="margin-top:7px">${rate.toFixed(0)}% collection rate</div>
     </div>
+
     <div class="stats">
-      <div class="stat amber"><div class="val">${money(totalPending)}</div><div class="lbl">Pending (${monthLabel(s.last_month)})</div></div>
-      <div class="stat blue"><div class="val">${money(totalMonthlyRent)}</div><div class="lbl">Monthly rent</div></div>
-      <div class="stat"><div class="val">${activeTenantCount}</div><div class="lbl">Active tenants</div></div>
-      <div class="stat green"><div class="val">${pendingTenantCount}</div><div class="lbl">With pending rent</div></div>
+      <div class="stat amber">
+        <div class="val">${money(totalPending)}</div>
+        <div class="lbl">Pending (${monthLabel(s.last_month)})</div>
+      </div>
+
+      <div class="stat blue">
+        <div class="val">${money(totalMonthlyRent)}</div>
+        <div class="lbl">Monthly income</div>
+      </div>
+
+      <div class="stat">
+        <div class="val">${activeTenantCount}</div>
+        <div class="lbl">Active tenants</div>
+      </div>
+
+      <div class="stat green">
+        <div class="val">${roomData.empty}</div>
+        <div class="lbl">Empty rooms</div>
+      </div>
     </div>
+
+    <div class="section-title">Monthly income by room series</div>
+
+    <div class="stats">
+      <div class="stat">
+        <div class="val">${money(series.KA)}</div>
+        <div class="lbl">KA series</div>
+      </div>
+
+      <div class="stat">
+        <div class="val">${money(series.KB)}</div>
+        <div class="lbl">KB series</div>
+      </div>
+
+      <div class="stat">
+        <div class="val">${money(series.GA)}</div>
+        <div class="lbl">GA series</div>
+      </div>
+
+      ${series.OTHER>0?`
+      <div class="stat">
+        <div class="val">${money(series.OTHER)}</div>
+        <div class="lbl">Other rooms</div>
+      </div>`:""}
+    </div>
+
+    <div class="card" style="padding:14px 15px;margin-top:12px">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div style="font-size:13px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px">
+            Room occupancy
+          </div>
+          <div style="font-size:21px;font-weight:800;margin-top:4px">
+            ${roomData.occupied} occupied · ${roomData.empty} empty
+          </div>
+        </div>
+        <div style="font-size:26px">🏠</div>
+      </div>
+
+      <div class="progress" style="margin-top:12px">
+        <i style="width:${roomData.total?Math.min(100,(roomData.occupied/roomData.total)*100):0}%"></i>
+      </div>
+
+      <div style="font-size:12px;color:var(--muted);margin-top:7px">
+        ${roomData.total} known room IDs
+        ${roomData.emptyRooms.length
+          ?` • Empty: ${esc(roomData.emptyRooms.join(", "))}`
+          :" • No empty rooms detected"}
+      </div>
+    </div>
+
     <div class="quick-grid" style="margin-top:12px">
-      <button class="quick" onclick="openPay()"><b>＋ Record payment</b><span>Add a rent collection</span></button>
-      <button class="quick" onclick="openTenantForm()"><b>＋ Add tenant</b><span>Register a new tenant</span></button>
+      <button class="quick" onclick="openPay()">
+        <b>＋ Record payment</b>
+        <span>Add a rent collection</span>
+      </button>
+
+      <button class="quick" onclick="openTenantForm()">
+        <b>＋ Add tenant</b>
+        <span>Register a new tenant</span>
+      </button>
     </div>
-    <div class="section-title">${esc(dueLabel)} ${pend.length?`<span class="link-btn" onclick="setTenantFilter('pending');switchTab('tenants')">View all ›</span>`:""}</div>`;
+
+    <div class="section-title">
+      ${esc(dueLabel)}
+      ${pend.length
+        ?`<span class="link-btn" onclick="setTenantFilter('pending');switchTab('tenants')">View all ›</span>`
+        :""}
+    </div>`;
+
   if(!pend.length){
-    html+=`<div class="card"><div class="center-state" style="padding:28px 20px"><div class="big">🎉</div><p>You're up to date.</p><p style="font-size:12px">Pending appears only after a tenant's billing period has completed.</p></div></div>`;
+    html+=`<div class="card">
+      <div class="center-state" style="padding:28px 20px">
+        <div class="big">🎉</div>
+        <p>You're up to date.</p>
+        <p style="font-size:12px">
+          Pending appears only after a tenant's billing period has completed.
+        </p>
+      </div>
+    </div>`;
   }else{
-    html+='<div class="card">'+pend.slice(0,5).map(t=>tenantRow(t,true)).join("")+'</div>';
+    html+='<div class="card">'+
+      pend.slice(0,5).map(t=>tenantRow(t,true)).join("")+
+      '</div>';
   }
+
   document.getElementById("view-home").innerHTML=html;
 }
 
