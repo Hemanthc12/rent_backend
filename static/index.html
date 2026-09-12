@@ -869,6 +869,28 @@ async function savePayment(){
 }
 
 /* ---------- ADD / EDIT TENANT ---------- */
+function tenantRoomOptions(currentRoom){
+  const rooms=Array.isArray(STATE?.utilities?.rooms)?STATE.utilities.rooms:[];
+  const current=String(currentRoom||"").trim();
+  const sorted=[...rooms].filter(r=>String(r.room_id||"").trim()).sort((a,b)=>{
+    const sa=String(a.series||"").localeCompare(String(b.series||""));
+    if(sa!==0)return sa;
+    return String(a.room_id||"").localeCompare(String(b.room_id||""),undefined,{numeric:true});
+  });
+  if(current && !sorted.some(r=>String(r.room_id).trim()===current)){
+    sorted.unshift({room_id:current,room_name:current,status:"occupied"});
+  }
+  if(!sorted.length){
+    return `<input class="control" id="fRoom" type="text" value="${esc(current)}" placeholder="e.g. GA1"/>`;
+  }
+  const opts=sorted.map(r=>{
+    const rid=String(r.room_id||"").trim();
+    const label=String(r.room_name||rid).trim();
+    const status=String(r.status||"").toLowerCase()==="occupied" && rid!==current ? " • Occupied" : "";
+    return `<option value="${esc(rid)}" ${rid===current?"selected":""}>${esc(rid)}${label&&label!==rid?" • "+esc(label):""}${status}</option>`;
+  }).join("");
+  return `<select class="control" id="fRoom"><option value="">— Select room —</option>${opts}</select>`;
+}
 function openTenantForm(id){
   const t=id?tenantById(id):null;const editing=!!t;
   const m=document.getElementById("modal");
@@ -884,7 +906,7 @@ function openTenantForm(id){
       <div class="field"><label>Phone</label><input class="control" id="fPhone" type="tel" value="${editing?esc(t.phone):""}"/></div>
     </div>
     <div class="row2">
-      <div class="field"><label>Room / unit</label><input class="control" id="fRoom" type="text" value="${editing?esc(t.room):""}"/></div>
+      <div class="field"><label>Room / unit</label>${tenantRoomOptions(editing?t.room:"")}</div>
       <div class="field"><label>Status</label><select class="control" id="fStatus"><option value="active" ${editing&&!isActive(t)?"":"selected"}>Active</option><option value="left" ${editing&&!isActive(t)?"selected":""}>Left</option></select></div>
     </div>
     ${editing?"":`<div class="field"><label>Tenant ID (optional)</label><input class="control" id="fId" type="text" placeholder="auto (e.g. b11)"/></div>`}

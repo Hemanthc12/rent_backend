@@ -512,6 +512,62 @@ def migrate_legacy_utility_data(sh, meters_ws, rooms_ws):
         # Migration must never prevent the normal app from loading.
         pass
 
+def sync_rooms_from_tenants(sh, affected_rooms=None):
+    """Keep the Rooms master sheet in sync with tenant room assignments.
+    Rooms are permanent IDs; tenant records determine current occupancy.
+    """
+    rooms_ws = get_or_create_ws(sh, ROOMS_WS, ROOM_HEADERS)
+    tenants_ws = get_tab(sh, TENANTS_WS)
+    t_headers = tenants_ws.row_values(1)
+    tenants = tenants_ws.get_all_records()
+
+    affected = {str(x).strip() for x in (affected_rooms or []) if str(x).strip()}
+    active_by_room = {}
+    for t in tenants:
+        room = str(get_val(t, t_headers, TENANT_ROOM)).strip()
+        tid = str(get_val(t, t_headers, TENANT_ID)).strip()
+        name = str(get_val(t, t_headers, TENANT_NAME)).strip()
+        status = str(get_val(t, t_headers, TENANT_STATUS)).strip().lower()
+        if not room:
+            continue
+        if not affected or room in affected:
+            if tid and name and status not in ("inactive", "left", "moved", "moved out", "no"):
+                active_by_room[room] = (tid, name)
+
+    r_headers = rooms_ws.row_values(1)
+    idx = {str(h).strip().lower(): i + 1 for i, h in enumerate(r_headers)}
+    room_id_col = idx.get("room_id", 1)
+    series_col = idx.get("series", 2)
+    name_col = idx.get("room_name", 3)
+    status_col = idx.get("status", 4)
+    tenant_col = idx.get("current_tenant_id", 5)
+    notes_col = idx.get("notes", 6)
+
+    existing = {}
+    for row_num, value in enumerate(rooms_ws.col_values(room_id_col)[1:], start=2):
+        rid = str(value).strip()
+        if rid:
+            existing[rid] = row_num
+
+    for room in affected:
+        if room not in active_by_room and room not in existing:
+            # No tenant currently uses this room, but it is still a valid room ID.
+            rooms_ws.append_row([room, _series_from_room(room), room, "empty", "", "Created from tenant room assignment"], value_input_option="USER_ENTERED")
+            existing[room] = len(rooms_ws.col_values(room_id_col))
+
+    for room, row_num in existing.items():
+        if affected and room not in affected:
+            continue
+        occupant = active_by_room.get(room)
+        if occupant:
+            tid, name = occupant
+            rooms_ws.update_cell(row_num, status_col, "occupied")
+            rooms_ws.update_cell(row_num, tenant_col, tid)
+            rooms_ws.update_cell(row_num, name_col, name)
+        else:
+            rooms_ws.update_cell(row_num, status_col, "empty")
+            rooms_ws.update_cell(row_num, tenant_col, "")
+
 def _bool_value(v):
     return str(v).strip().lower() in ("true", "yes", "y", "paid", "1")
 
@@ -671,6 +727,11 @@ def api_add_tenant():
 
         row = [rowmap.get(h, "") for h in headers]
         ws.append_row(row, value_input_option="USER_ENTERED")
+
+        # Also create/update the permanent room record.
+        room_id = str(data.get("room", "")).strip()
+        if room_id:
+            sync_rooms_from_tenants(get_spreadsheet(get_client()), [room_id])
         return jsonify({"ok": True, "tenant_id": tid}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -690,6 +751,8 @@ def api_edit_tenant(tid):
         if not row:
             return jsonify({"error": "tenant not found"}), 404
 
+        old_room = str(get_val(dict(zip(headers, ws.row_values(row))), headers, TENANT_ROOM)).strip()
+
         field_map = [
             ("tenant_name", TENANT_NAME, "tenant_name"),
             ("monthly_rent", TENANT_RENT, "monthly_rent"),
@@ -703,6 +766,11 @@ def api_edit_tenant(tid):
             if key in data:
                 col = header_index(headers, aliases)[1] or ensure_header(ws, headers, fallback)
                 ws.update_cell(row, col, data.get(key, ""))
+
+        new_room = str(data.get("room", old_room)).strip()
+        affected_rooms = [x for x in (old_room, new_room) if x]
+        if affected_rooms:
+            sync_rooms_from_tenants(get_spreadsheet(get_client()), affected_rooms)
         return jsonify({"ok": True}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -716,7 +784,11 @@ def api_delete_tenant(tid):
         row = find_row(ws, TENANT_ID, tid)
         if not row:
             return jsonify({"error": "tenant not found"}), 404
+        headers = ws.row_values(1)
+        old_room = str(get_val(dict(zip(headers, ws.row_values(row))), headers, TENANT_ROOM)).strip()
         ws.delete_rows(row)
+        if old_room:
+            sync_rooms_from_tenants(get_spreadsheet(get_client()), [old_room])
         return jsonify({"ok": True}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
