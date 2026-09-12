@@ -435,6 +435,182 @@ def api_debug_sheets():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
+# -----------------------
+# Utility / property sheets
+# -----------------------
+METERS_WS = os.environ.get("METERS_WS", "Meters")
+UTILITY_BILLS_WS = os.environ.get("UTILITY_BILLS_WS", "UtilityBills")
+COMMON_EXPENSES_WS = os.environ.get("COMMON_EXPENSES_WS", "CommonExpenses")
+ROOMS_WS = os.environ.get("ROOMS_WS", "Rooms")
+
+METER_HEADERS = ["meter_id", "meter_type", "room_id", "consumer_name", "rr_number", "eb_number", "connection_type", "status", "notes"]
+UTILITY_BILL_HEADERS = ["bill_id", "month", "meter_id", "meter_type", "room_id", "previous_reading", "current_reading", "units", "bill_amount", "paid", "bill_date", "paid_date", "notes", "created_at"]
+COMMON_EXPENSE_HEADERS = ["expense_id", "date", "month", "category", "description", "amount", "paid_by", "notes", "created_at"]
+ROOM_HEADERS = ["room_id", "series", "room_name", "status", "current_tenant_id", "notes"]
+
+def get_or_create_ws(sh, name, headers):
+    try:
+        return get_tab(sh, name)
+    except Exception:
+        ws = sh.add_worksheet(title=name, rows=1000, cols=max(20, len(headers)))
+        ws.append_row(headers, value_input_option="USER_ENTERED")
+        return ws
+
+def ensure_utility_sheets(sh):
+    meters = get_or_create_ws(sh, METERS_WS, METER_HEADERS)
+    bills = get_or_create_ws(sh, UTILITY_BILLS_WS, UTILITY_BILL_HEADERS)
+    expenses = get_or_create_ws(sh, COMMON_EXPENSES_WS, COMMON_EXPENSE_HEADERS)
+    rooms = get_or_create_ws(sh, ROOMS_WS, ROOM_HEADERS)
+    migrate_legacy_utility_data(sh, meters, rooms)
+    return meters, bills, expenses, rooms
+
+def _record_by_id(ws, aliases, value):
+    headers = ws.row_values(1)
+    return find_row(ws, aliases, value)
+
+def _series_from_room(room_id):
+    m = re.match(r"^([A-Za-z]+)", str(room_id or "").strip())
+    return m.group(1).upper() if m else "OTHER"
+
+def migrate_legacy_utility_data(sh, meters_ws, rooms_ws):
+    """One-way safe migration of legacy RR/E-Bill values from Tenants.
+    Old columns are intentionally preserved. Ambiguous legacy reading columns are not
+    interpreted as billing history until the user records a UtilityBill explicitly.
+    """
+    try:
+        tws = get_tab(sh, TENANTS_WS)
+        headers = tws.row_values(1)
+        records = tws.get_all_records()
+        rr_name, rr_col = header_index(headers, ["RR-number", "rr_number", "rr number", "rr-number"])
+        eb_name, eb_col = header_index(headers, ["E-Bill", "eb_number", "e-bill", "ebill", "eb number"])
+        if not rr_col and not eb_col:
+            return
+        existing = {str(v).strip() for v in meters_ws.col_values(1)[1:] if str(v).strip()}
+        existing_rooms = {str(v).strip(): i+2 for i, v in enumerate(rooms_ws.col_values(1)[1:]) if str(v).strip()}
+        for r in records:
+            tid = str(get_val(r, headers, TENANT_ID)).strip()
+            name = str(get_val(r, headers, TENANT_NAME)).strip()
+            room = str(get_val(r, headers, TENANT_ROOM)).strip() or tid
+            if room:
+                status = "occupied" if tid and name and str(get_val(r, headers, TENANT_STATUS)).strip().lower() not in ("inactive","left","moved","moved out","no") else "empty"
+                if room not in existing_rooms:
+                    rooms_ws.append_row([room, _series_from_room(room), name or room, status, tid, "Migrated from Tenants"], value_input_option="USER_ENTERED")
+                    existing_rooms[room] = 1
+            rr = str(r.get(rr_name, "")).strip() if rr_name else ""
+            eb = str(r.get(eb_name, "")).strip() if eb_name else ""
+            if rr or eb:
+                meter_room = room or "PUMP"
+                meter_id = "M-" + re.sub(r"[^A-Za-z0-9_-]", "", meter_room).upper()
+                if meter_id not in existing:
+                    meters_ws.append_row([meter_id, "Electricity", meter_room, name or ("Common Pump" if meter_room.upper()=="PUMP" else ""), rr, eb, "Common" if meter_room.upper()=="PUMP" else "Tenant", "active", "Migrated from Tenants sheet"], value_input_option="USER_ENTERED")
+                    existing.add(meter_id)
+                if meter_room not in existing_rooms:
+                    rooms_ws.append_row([meter_room, _series_from_room(meter_room), name or meter_room, "occupied" if tid and name else "empty", tid, "Migrated from legacy meter data"], value_input_option="USER_ENTERED")
+                    existing_rooms[meter_room] = 1
+    except Exception:
+        # Migration must never prevent the normal app from loading.
+        pass
+
+def _bool_value(v):
+    return str(v).strip().lower() in ("true", "yes", "y", "paid", "1")
+
+def _utility_state():
+    client = get_client()
+    sh = get_spreadsheet(client)
+    meters_ws, bills_ws, expenses_ws, rooms_ws = ensure_utility_sheets(sh)
+    meters = meters_ws.get_all_records()
+    bills = bills_ws.get_all_records()
+    expenses = expenses_ws.get_all_records()
+    cmonth = current_month()
+    this_month_bills = sum(to_num(x.get("bill_amount")) for x in bills if str(x.get("month", "")).strip()[:7] == cmonth)
+    unpaid_bills = sum(to_num(x.get("bill_amount")) for x in bills if not _bool_value(x.get("paid")))
+    this_month_common = sum(to_num(x.get("amount")) for x in expenses if str(x.get("month", "")).strip()[:7] == cmonth)
+    return {"meters": meters, "bills": bills, "expenses": expenses,
+            "rooms": rooms_ws.get_all_records(),
+            "summary": {"this_month_bills": this_month_bills, "unpaid_bills": unpaid_bills, "this_month_common": this_month_common, "current_month": cmonth}}
+
+@app.route("/api/utilities", methods=["GET"])
+def api_utilities():
+    if not guard():
+        return jsonify({"error": "unauthorized"}), 401
+    try:
+        return jsonify(_utility_state()), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/utilities/meters", methods=["POST"])
+def api_add_meter():
+    if not guard():
+        return jsonify({"error": "unauthorized"}), 401
+    data = request.get_json() or {}
+    room_id = str(data.get("room_id", "")).strip()
+    if not room_id:
+        return jsonify({"error": "room_id is required"}), 400
+    try:
+        client = get_client(); sh = get_spreadsheet(client)
+        ws, _, _, _ = ensure_utility_sheets(sh)
+        meter_id = str(data.get("meter_id", "")).strip() or ("M-" + re.sub(r"[^A-Za-z0-9_-]", "", room_id).upper())
+        if find_row(ws, ["meter_id"], meter_id):
+            return jsonify({"error": "meter_id already exists"}), 409
+        row = [meter_id, data.get("meter_type", "Electricity"), room_id, data.get("consumer_name", ""), data.get("rr_number", ""), data.get("eb_number", ""), data.get("connection_type", "Tenant"), data.get("status", "active"), data.get("notes", "")]
+        ws.append_row(row, value_input_option="USER_ENTERED")
+        return jsonify({"ok": True, "meter_id": meter_id}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/utilities/bills", methods=["POST"])
+def api_add_utility_bill():
+    if not guard():
+        return jsonify({"error": "unauthorized"}), 401
+    data = request.get_json() or {}
+    meter_id = str(data.get("meter_id", "")).strip()
+    month = str(data.get("month", "")).strip()[:7]
+    amount = data.get("bill_amount", "")
+    if not meter_id or not month or str(amount).strip() == "":
+        return jsonify({"error": "meter_id, month and bill_amount are required"}), 400
+    try:
+        client = get_client(); sh = get_spreadsheet(client)
+        _, ws, _, _ = ensure_utility_sheets(sh)
+        mw = get_tab(sh, METERS_WS); mh = mw.row_values(1); mrow = find_row(mw, ["meter_id"], meter_id)
+        meter = mw.row_values(mrow) if mrow else []
+        m = dict(zip(mh, meter)) if meter else {}
+        bill_id = str(uuid.uuid4())
+        row = [bill_id, month, meter_id, m.get("meter_type", "Electricity"), m.get("room_id", ""), data.get("previous_reading", ""), data.get("current_reading", ""), data.get("units", ""), amount, "TRUE" if _bool_value(data.get("paid")) else "FALSE", data.get("bill_date", ""), data.get("paid_date", ""), data.get("notes", ""), now_synced()]
+        ws.append_row(row, value_input_option="USER_ENTERED")
+        return jsonify({"ok": True, "bill_id": bill_id}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/utilities/expenses", methods=["POST"])
+def api_add_common_expense():
+    if not guard():
+        return jsonify({"error": "unauthorized"}), 401
+    data = request.get_json() or {}
+    if not str(data.get("date", "")).strip() or not str(data.get("category", "")).strip() or to_num(data.get("amount")) <= 0:
+        return jsonify({"error": "date, category and positive amount are required"}), 400
+    try:
+        client = get_client(); sh = get_spreadsheet(client)
+        _, _, ws, _ = ensure_utility_sheets(sh)
+        eid = str(uuid.uuid4())
+        month = str(data.get("month", "")).strip()[:7] or str(data.get("date", ""))[:7]
+        row = [eid, data.get("date", ""), month, data.get("category", ""), data.get("description", ""), data.get("amount", ""), data.get("paid_by", "Owner"), data.get("notes", ""), now_synced()]
+        ws.append_row(row, value_input_option="USER_ENTERED")
+        return jsonify({"ok": True, "expense_id": eid}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/rooms", methods=["GET"])
+def api_rooms():
+    if not guard():
+        return jsonify({"error": "unauthorized"}), 401
+    try:
+        client = get_client(); sh = get_spreadsheet(client)
+        _, _, _, ws = ensure_utility_sheets(sh)
+        return jsonify({"rooms": ws.get_all_records()}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 # -----------------------
 # Tenants
 # -----------------------

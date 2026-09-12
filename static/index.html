@@ -199,6 +199,7 @@
     <nav class="tabs">
       <button class="tab active" id="tab-home" onclick="switchTab('home')">🏠 Home</button>
       <button class="tab" id="tab-tenants" onclick="switchTab('tenants')">👥 Tenants</button>
+      <button class="tab" id="tab-utilities" onclick="switchTab('utilities')">⚡ Utilities</button>
       <button class="tab" id="tab-pay" onclick="switchTab('pay')">💸 Payments</button>
       <button class="tab" id="tab-activity" onclick="switchTab('activity')">📅 Activity</button>
     </nav>
@@ -215,6 +216,7 @@
       <input class="search" id="tsearch" type="text" placeholder="🔍  Search tenant…" oninput="renderTenants()" />
       <div id="tenantList"></div>
     </section>
+    <section class="view" id="view-utilities"><div id="utilitiesBody"></div></section>
     <section class="view" id="view-pay"><div id="payBody"></div></section>
     <section class="view" id="view-activity"><div id="activityBody"></div></section>
   </main>
@@ -332,27 +334,17 @@ function getCollectionRate(){
 }
 
 function getRoomData(){
+  const rooms=Array.isArray(STATE?.utilities?.rooms)?STATE.utilities.rooms:[];
   const tenants=Array.isArray(STATE?.tenants)?STATE.tenants:[];
-
-  const rooms=tenants
-    .map(t=>String(t.tenant_id||"").trim())
-    .filter(Boolean);
-
-  const uniqueRooms=[...new Set(rooms)];
-
-  const occupied=tenants.filter(t=>isActive(t)&&String(t.tenant_id||"").trim());
-
-  const empty=tenants.filter(t=>{
-    const id=String(t.tenant_id||"").trim();
-    return id && (!isActive(t) || !String(t.tenant_name||"").trim());
-  });
-
-  return {
-    total:uniqueRooms.length,
-    occupied:occupied.length,
-    empty:empty.length,
-    emptyRooms:empty.map(t=>String(t.tenant_id||"").trim()).filter(Boolean)
-  };
+  if(rooms.length){
+    const occupied=rooms.filter(r=>String(r.status||"").toLowerCase()==="occupied" || (r.current_tenant_id && tenants.some(t=>String(t.tenant_id)===String(r.current_tenant_id)&&isActive(t))));
+    const empty=rooms.filter(r=>!occupied.includes(r));
+    return {total:rooms.length,occupied:occupied.length,empty:empty.length,emptyRooms:empty.map(r=>String(r.room_id||"")).filter(Boolean)};
+  }
+  const ids=tenants.map(t=>String(t.room||t.tenant_id||"").trim()).filter(Boolean);
+  const unique=[...new Set(ids)];
+  const occupied=tenants.filter(t=>isActive(t)&&String(t.room||t.tenant_id||"").trim());
+  return {total:unique.length,occupied:occupied.length,empty:Math.max(0,unique.length-occupied.length),emptyRooms:[]};
 }
 
 function getSeriesIncome(){
@@ -411,7 +403,8 @@ async function loadAll(refresh){
   if(!STATE){document.getElementById("view-home").innerHTML='<div class="skeleton" style="height:96px"></div>';skeletons("tenantList",5);}
   try{
     STATE=await api("/api/tenants");
-    renderHome();renderTenants();renderPay();renderActivity();updateTopSub();setTenantFilter(tenantFilter);
+    try{ STATE.utilities=await api("/api/utilities"); }catch(ue){ STATE.utilities={meters:[],bills:[],expenses:[],summary:{}}; }
+    renderHome();renderTenants();renderUtilities();renderPay();renderActivity();updateTopSub();setTenantFilter(tenantFilter);
     if(refresh)toast("Data refreshed","ok");
   }catch(e){
     if(e.status===401){lockApp();return;}
@@ -539,6 +532,12 @@ function renderHome(){
       </div>
     </div>
 
+    <div class="section-title">Utility snapshot</div>
+    <div class="quick-grid">
+      <button class="quick" onclick="switchTab('utilities')"><b>⚡ Electricity</b><span>${money((STATE.utilities&&STATE.utilities.summary&&STATE.utilities.summary.this_month_bills)||0)} this month</span></button>
+      <button class="quick" onclick="openCommonExpenseForm()"><b>💧 Water / Pump</b><span>Add common expense</span></button>
+    </div>
+
     <div class="quick-grid" style="margin-top:12px">
       <button class="quick" onclick="openPay()">
         <b>＋ Record payment</b>
@@ -620,6 +619,93 @@ function renderTenants(){
   el.innerHTML='<div class="card">'+list.map(t=>tenantRow(t)).join("")+'</div>';
 }
 
+
+/* ---------- UTILITIES ---------- */
+async function renderUtilities(){
+  const el=document.getElementById("utilitiesBody");
+  if(!el)return;
+  el.innerHTML=`<div class="section-title">Utilities</div><div id="utilityList"><div class="skeleton"></div><div class="skeleton"></div></div>`;
+  try{
+    const r=await api("/api/utilities");
+    STATE.utilities=r;
+    const meters=r.meters||[], bills=r.bills||[], expenses=r.expenses||[];
+    const sm=r.summary||{};
+    const recent=bills.slice().sort((a,b)=>String(b.bill_date||b.month||"").localeCompare(String(a.bill_date||a.month||""))).slice(0,12);
+    let html=`<div class="stats">
+      <div class="stat"><div class="val">${meters.length}</div><div class="lbl">Meters</div></div>
+      <div class="stat blue"><div class="val">${money(sm.this_month_bills||0)}</div><div class="lbl">Utility bills</div></div>
+      <div class="stat amber"><div class="val">${money(sm.unpaid_bills||0)}</div><div class="lbl">Unpaid bills</div></div>
+      <div class="stat green"><div class="val">${money(sm.this_month_common||0)}</div><div class="lbl">Common expenses</div></div>
+    </div>`;
+    html+=`<div class="section-title">Meters</div><div class="card" style="padding:4px 14px">`;
+    html+=meters.length?meters.map(m=>`<div class="hentry"><div class="hicon">⚡</div><div><div class="hm">${esc(m.room_id||m.meter_id)} • ${esc(m.meter_type||"Electricity")}</div><div class="hd">RR: ${esc(m.rr_number||"—")} • EB: ${esc(m.eb_number||"—")} ${m.consumer_name?"• "+esc(m.consumer_name):""}</div></div><div class="ha">${esc(m.status||"active")}</div></div>`).join(""):`<div class="center-state" style="padding:24px"><p>No meters configured.</p></div>`;
+    html+=`</div>`;
+    html+=`<div class="section-title"><span>Recent utility bills</span><span><button class="link-btn" onclick="openMeterForm()">＋ Meter</button> <button class="link-btn" onclick="openUtilityBillForm()">＋ Bill</button></span></div><div class="card" style="padding:4px 14px">`;
+    html+=recent.length?recent.map(b=>`<div class="hentry"><div class="hicon">⚡</div><div><div class="hm">${esc(b.room_id||b.meter_id||"Utility")}</div><div class="hd">${esc(b.month||"")} • ${num(b.units)} units ${b.paid?"• Paid":"• Unpaid"}</div></div><div class="ha">${money(b.bill_amount)}</div></div>`).join(""):`<div class="center-state" style="padding:24px"><p>No utility bills yet.</p></div>`;
+    html+=`</div>`;
+    html+=`<div class="section-title"><span>Common expenses</span><button class="link-btn" onclick="openCommonExpenseForm()">＋ Add</button></div><div class="card" style="padding:4px 14px">`;
+    html+=expenses.slice().sort((a,b)=>String(b.date||"").localeCompare(String(a.date||""))).slice(0,10).map(e=>`<div class="hentry"><div class="hicon">₹</div><div><div class="hm">${esc(e.category||"Expense")}</div><div class="hd">${esc(e.description||"")} • ${esc(e.date||"")}</div></div><div class="ha">${money(e.amount)}</div></div>`).join("")||`<div class="center-state" style="padding:24px"><p>No common expenses yet.</p></div>`;
+    html+=`</div>`;
+    document.getElementById("utilityList").innerHTML=html;
+  }catch(e){document.getElementById("utilityList").innerHTML=errState(e.message);}
+}
+function openMeterForm(){
+  const m=document.getElementById("modal");
+  const rooms=(STATE&&STATE.rooms)||[];
+  m.innerHTML=`<div class="grip"></div><h3>Add meter</h3><p class="msub">Store permanent RR / E-Bill details separately from tenants.</p>
+    <div class="field"><label>Room / Unit ID</label><input class="control" id="mRoom" type="text" placeholder="e.g. GA4 or PUMP"/></div>
+    <div class="field"><label>Meter type</label><select class="control" id="mType"><option>Electricity</option><option>Water</option><option>Pump</option><option>Other</option></select></div>
+    <div class="field"><label>Consumer name</label><input class="control" id="mName" type="text"/></div>
+    <div class="row2"><div class="field"><label>RR number</label><input class="control" id="mRR" type="text"/></div><div class="field"><label>E-Bill number</label><input class="control" id="mEB" type="text"/></div></div>
+    <div class="row2"><div class="field"><label>Connection</label><select class="control" id="mConn"><option>Tenant</option><option>Common</option><option>Owner</option></select></div><div class="field"><label>Status</label><select class="control" id="mStatus"><option>active</option><option>inactive</option></select></div></div>
+    <div class="field"><label>Notes</label><input class="control" id="mNotes" type="text"/></div>
+    <div class="actions2"><button class="btn ghost" onclick="closeModal()">Cancel</button><button class="btn" id="mBtn" onclick="saveMeter()">✓ Save meter</button></div>`;
+  showModal();
+}
+async function saveMeter(){
+  const body={room_id:document.getElementById("mRoom").value.trim(),meter_type:document.getElementById("mType").value,consumer_name:document.getElementById("mName").value.trim(),rr_number:document.getElementById("mRR").value.trim(),eb_number:document.getElementById("mEB").value.trim(),connection_type:document.getElementById("mConn").value,status:document.getElementById("mStatus").value,notes:document.getElementById("mNotes").value.trim()};
+  if(!body.room_id){toast("Enter a room / unit ID","err");return;}
+  const btn=document.getElementById("mBtn");btn.disabled=true;btn.innerHTML='<span class="spinner"></span> Saving…';
+  try{await api("/api/utilities/meters",{method:"POST",body:JSON.stringify(body)});closeModal();toast("Meter saved","ok");await loadAll();}catch(e){btn.disabled=false;btn.textContent="✓ Save meter";toast("Failed: "+e.message,"err");}
+}
+
+function openUtilityBillForm(){
+  const meters=(STATE&&STATE.utilities&&STATE.utilities.meters)||[];
+  const m=document.getElementById("modal");
+  m.innerHTML=`<div class="grip"></div><h3>Add utility bill</h3><p class="msub">Record a monthly meter reading and bill.</p>
+    <div class="field"><label>Meter / Room</label><select class="control" id="uMeter">${meters.map(x=>`<option value="${esc(x.meter_id)}">${esc(x.room_id||x.meter_id)} • ${esc(x.meter_type||"Electricity")}</option>`).join("")}</select></div>
+    <div class="row2"><div class="field"><label>Month</label><input class="control" id="uMonth" type="month" value="${curMonth()}"/></div><div class="field"><label>Bill date</label><input class="control" id="uDate" type="date" value="${todayISO()}"/></div></div>
+    <div class="row2"><div class="field"><label>Previous reading</label><input class="control" id="uPrev" type="number" step="0.01"/></div><div class="field"><label>Current reading</label><input class="control" id="uCurr" type="number" step="0.01"/></div></div>
+    <div class="row2"><div class="field"><label>Units</label><input class="control" id="uUnits" type="number" step="0.01"/></div><div class="field"><label>Bill amount</label><div class="amt-wrap"><span class="rs">₹</span><input class="control" id="uAmount" type="number" step="0.01"/></div></div></div>
+    <div class="row2"><div class="field"><label>Status</label><select class="control" id="uPaid"><option value="false">Unpaid</option><option value="true">Paid</option></select></div><div class="field"><label>Paid date</label><input class="control" id="uPaidDate" type="date"/></div></div>
+    <div class="field"><label>Notes</label><input class="control" id="uNotes" type="text"/></div>
+    <div class="actions2"><button class="btn ghost" onclick="closeModal()">Cancel</button><button class="btn" id="uBtn" onclick="saveUtilityBill()">✓ Save bill</button></div>`;
+  showModal();
+}
+async function saveUtilityBill(){
+  const btn=document.getElementById("uBtn"); btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Saving…';
+  const body={meter_id:document.getElementById("uMeter").value,month:document.getElementById("uMonth").value,bill_date:document.getElementById("uDate").value,previous_reading:document.getElementById("uPrev").value,current_reading:document.getElementById("uCurr").value,units:document.getElementById("uUnits").value,bill_amount:document.getElementById("uAmount").value,paid:document.getElementById("uPaid").value==="true",paid_date:document.getElementById("uPaidDate").value,notes:document.getElementById("uNotes").value.trim()};
+  if(!body.meter_id||!body.month||Number(body.bill_amount)<0){btn.disabled=false;btn.textContent="✓ Save bill";toast("Select a meter, month and valid amount","err");return;}
+  try{await api("/api/utilities/bills",{method:"POST",body:JSON.stringify(body)});closeModal();toast("Utility bill saved","ok");await loadAll();}catch(e){btn.disabled=false;btn.textContent="✓ Save bill";toast("Failed: "+e.message,"err");}
+}
+function openCommonExpenseForm(){
+  const m=document.getElementById("modal");
+  m.innerHTML=`<div class="grip"></div><h3>Add common expense</h3><p class="msub">Water, pump, maintenance and other property costs.</p>
+    <div class="row2"><div class="field"><label>Date</label><input class="control" id="ceDate" type="date" value="${todayISO()}"/></div><div class="field"><label>Month</label><input class="control" id="ceMonth" type="month" value="${curMonth()}"/></div></div>
+    <div class="field"><label>Category</label><select class="control" id="ceCat"><option>Water</option><option>Pump</option><option>Electrical maintenance</option><option>Plumbing</option><option>Cleaning</option><option>Property maintenance</option><option>Repairs</option><option>Other</option></select></div>
+    <div class="field"><label>Description</label><input class="control" id="ceDesc" type="text" placeholder="e.g. Water tanker"/></div>
+    <div class="field"><label>Amount</label><div class="amt-wrap"><span class="rs">₹</span><input class="control" id="ceAmount" type="number" step="0.01"/></div></div>
+    <div class="field"><label>Notes</label><input class="control" id="ceNotes" type="text"/></div>
+    <div class="actions2"><button class="btn ghost" onclick="closeModal()">Cancel</button><button class="btn" id="ceBtn" onclick="saveCommonExpense()">✓ Save</button></div>`;
+  showModal();
+}
+async function saveCommonExpense(){
+  const body={date:document.getElementById("ceDate").value,month:document.getElementById("ceMonth").value,category:document.getElementById("ceCat").value,description:document.getElementById("ceDesc").value.trim(),amount:document.getElementById("ceAmount").value,notes:document.getElementById("ceNotes").value.trim()};
+  if(!body.date||!body.category||Number(body.amount)<=0){toast("Enter date, category and amount","err");return;}
+  const btn=document.getElementById("ceBtn");btn.disabled=true;btn.innerHTML='<span class="spinner"></span> Saving…';
+  try{await api("/api/utilities/expenses",{method:"POST",body:JSON.stringify(body)});closeModal();toast("Expense saved","ok");await loadAll();}catch(e){btn.disabled=false;btn.textContent="✓ Save";toast("Failed: "+e.message,"err");}
+}
+
 /* ---------- PAYMENTS ---------- */
 async function renderPay(){
   const el=document.getElementById("payBody");
@@ -640,6 +726,7 @@ function entryRow(e,showName){
     <div class="ha">${money(e.amount)}</div></div>`;
 }
 function norm7(s){s=String(s||"");return s.length>=7?s.slice(0,7):s;}
+function _clientPaid(v){return [true,"true","yes","paid","1"].includes(typeof v==="string"?v.toLowerCase():v);}
 
 /* ---------- ACTIVITY / EVENTS ---------- */
 async function renderActivity(){
@@ -700,9 +787,26 @@ async function openTenant(id){
     <button class="btn" onclick="openPay('${esc(t.tenant_id)}')">＋ Record Payment</button>
     <div class="actions2"><button class="btn ghost sm" onclick="openTenantForm('${esc(t.tenant_id)}')">✎ Edit</button>
       <button class="btn danger sm" onclick="confirmDeleteTenant('${esc(t.tenant_id)}')">🗑 Remove</button></div>
+    <div class="section-title" style="margin-bottom:6px">Utility meter</div>
+    <div id="tenantUtility" class="card" style="padding:12px 14px;margin-bottom:12px"><div style="color:var(--muted);font-size:13px">Loading meter details…</div></div>
     <div class="section-title" style="margin-bottom:6px">Payment history</div>
     <div class="hist" id="thist"><div class="skeleton" style="height:48px"></div></div>`;
   showModal();
+  try{
+    const meters=(STATE.utilities&&STATE.utilities.meters)||[];
+    const ms=meters.filter(x=>String(x.room_id||"").trim()===String(t.room||t.tenant_id||"").trim());
+    const ub=(STATE.utilities&&STATE.utilities.bills)||[];
+    const last=ub.filter(x=>ms.some(m=>m.meter_id===x.meter_id)).sort((a,b)=>String(b.month||"").localeCompare(String(a.month||"")))[0];
+    const uel=document.getElementById("tenantUtility");
+    if(ms.length){
+      uel.innerHTML=ms.map(x=>{
+        const latest=ub.filter(z=>z.meter_id===x.meter_id).sort((a,b)=>String(b.month||"").localeCompare(String(a.month||"")))[0];
+        return `<div><b>⚡ ${esc(x.meter_type||"Electricity")}</b><div style="font-size:12px;color:var(--muted);margin-top:4px">RR: ${esc(x.rr_number||"—")} • E-Bill: ${esc(x.eb_number||"—")}</div>${latest?`<div style="font-size:12px;margin-top:7px">${esc(latest.month)} • ${num(latest.units)} units • ${money(latest.bill_amount)} • ${_clientPaid(latest.paid)?"Paid":"Unpaid"}</div>`:""}</div>`;
+      }).join(`<hr style="border:0;border-top:1px solid var(--line);margin:10px 0">`);
+    }else{
+      uel.innerHTML=`<div style="color:var(--muted);font-size:13px">No meter linked to this room.</div>`;
+    }
+  }catch(e){const uel=document.getElementById("tenantUtility");if(uel)uel.innerHTML=`<div style="color:var(--muted);font-size:13px">No meter details.</div>`;}
   try{
     const r=await api("/api/entries?tenant_id="+encodeURIComponent(id));
     const es=r.entries||[];
@@ -832,13 +936,14 @@ async function deleteEntry(eid,tid){
 /* ---------- FAB ---------- */
 function onFab(){
   if(activeTab==="tenants")openTenantForm();
+  else if(activeTab==="utilities")openUtilityBillForm();
   else openPay();
 }
-function setFab(){document.getElementById("fabLabel").textContent=activeTab==="tenants"?"Add Tenant":"Record Payment";}
+function setFab(){document.getElementById("fabLabel").textContent=activeTab==="tenants"?"Add Tenant":activeTab==="utilities"?"Add Utility Bill":"Record Payment";}
 
 /* ---------- tabs / modal / settings / toast ---------- */
 function switchTab(t){activeTab=t;
-  ["home","tenants","pay","activity"].forEach(x=>{document.getElementById("tab-"+x).classList.toggle("active",x===t);
+  ["home","tenants","utilities","pay","activity"].forEach(x=>{document.getElementById("tab-"+x).classList.toggle("active",x===t);
     document.getElementById("view-"+x).classList.toggle("active",x===t);});
   setFab();}
 function backFromTenant(){
